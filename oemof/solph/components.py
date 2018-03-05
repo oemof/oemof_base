@@ -145,6 +145,9 @@ class GenericStorage(network.Transformer):
             if (flow.nominal_value is not None and
                     self.nominal_input_capacity_ratio is not None):
                 raise AttributeError(e_duplicate)
+            if (flow.invesmtnet and flow.nonconvex is not None):
+                raise AttributeError("Can't combine nonconvex with"
+                                     " investment for storage optimization!")
             if (not self.investment and
                     self.nominal_input_capacity_ratio is not None):
                 flow.nominal_value = (self.nominal_input_capacity_ratio *
@@ -160,6 +163,9 @@ class GenericStorage(network.Transformer):
             if (flow.nominal_value is not None and
                     self.nominal_output_capacity_ratio is not None):
                 raise AttributeError(e_duplicate)
+            if (flow.invesmtnet and flow.nonconvex is not None):
+                raise AttributeError("Can't combine nonconvex with"
+                                     " investment for storage optimization!")
             if (not self.investment and
                     self.nominal_output_capacity_ratio is not None):
                 flow.nominal_value = (self.nominal_output_capacity_ratio *

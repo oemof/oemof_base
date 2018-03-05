@@ -657,6 +657,9 @@ class NonConvexFlow(SimpleBlock):
         self.SHUTDOWNFLOWS = Set(initialize=[(g[0], g[1]) for g in group
                                  if g[2].nonconvex.shutdown_costs is not None])
 
+        self.INVESTMENT_FLOWS = Set(initialize=[
+            (g[0], g[1]) for g in group if g[2].investment is not None])
+
         # ################### VARIABLES AND CONSTRAINTS #######################
         self.status = Var(self.NONCONVEX_FLOWS, m.TIMESTEPS, within=Binary)
 
@@ -666,13 +669,65 @@ class NonConvexFlow(SimpleBlock):
         if self.SHUTDOWNFLOWS:
             self.shutdown = Var(self.SHUTDOWNFLOWS, m.TIMESTEPS,
                                 within=Binary)
+        # helper variable for to transform quadratic term to linear term
+        self.z = Var(self.INVESTMENT_FLOWS, m.TIMESTEPS)
+
+        def _U1_rule(block, i, o, t):
+            """Rule definition U1 for quadratic term transformation:
+            z <= U * , with y binary
+            """
+            expr = (self.z[i, o, t] <=
+                    m.flows[i, o].investment.maximum * self.status[i, o, t])
+            return expr
+        self.U1 = Constraint(self.INVESTMENT_FLOWS, m.TIMESTEPS,
+                             rule=_U1_rule)
+
+        def _L1_rule(block, i, o, t):
+            """Rule definition L1 for quadratic term transformation:
+            z >= L * y, with y binary.
+            """
+            expr = (self.z[i, o, t] >=
+                    m.flows[i, o].investment.minimum * self.status[i, o, t])
+            return expr
+        self.L1 = Constraint(self.INVESTMENT_FLOWS, m.TIMESTEPS,
+                             rule=_L1_rule)
+
+        def _L2_rule(block, i, o, t):
+            """Rule definition L2 for quadratic term transformation:
+            z <= x - L(1 - y)  with x continous and y binary
+            """
+            expr = (self.z[i, o, t] <=
+                    m.InvestmentFlow.invest[i, o] -
+                    m.flows[i, o].investment.minimum *
+                    (1 - self.status[i, o, t]))
+            return expr
+        self.U2 = Constraint(self.INVESTMENT_FLOWS, m.TIMESTEPS,
+                             rule=_L2_rule)
+
+        def _U2_rule(block, i, o, t):
+            """Rule definition U2 for quadratic term transformation:
+            z >= x - U(1 - y),  with x continous and y binary.
+            """
+            expr = (self.z[i, o, t] >=
+                    m.InvestmentFlow.invest[i, o] -
+                    m.flows[i, o].investment.maximum *
+                    (1 - self.status[i, o, t]))
+            return expr
+        self.L2 = Constraint(self.INVESTMENT_FLOWS, m.TIMESTEPS,
+                             rule=_U2_rule)
 
         def _minimum_flow_rule(block, i, o, t):
             """Rule definition for MILP minimum flow constraints.
             """
-            expr = (self.status[i, o, t] *
-                    m.flows[i, o].min[t] * m.flows[i, o].nominal_value <=
-                    m.flow[i, o, t])
+            if m.flows[i, o].investment is None:
+                expr = (self.status[i, o, t] *
+                        m.flows[i, o].min[t] * m.flows[i, o].nominal_value <=
+                        m.flow[i, o, t])
+            else:
+                # if investment is not None, use z-variable to transform
+                # quadratic term
+                expr = (self.z[i, o, t] * m.flows[i, o].min[t] <=
+                        m.flow[i, o, t])
             return expr
         self.min = Constraint(self.MIN_FLOWS, m.TIMESTEPS,
                               rule=_minimum_flow_rule)
@@ -680,9 +735,15 @@ class NonConvexFlow(SimpleBlock):
         def _maximum_flow_rule(block, i, o, t):
             """Rule definition for MILP maximum flow constraints.
             """
-            expr = (self.status[i, o, t] *
-                    m.flows[i, o].max[t] * m.flows[i, o].nominal_value >=
-                    m.flow[i, o, t])
+            if m.flows[i, o].investment is None:
+                expr = (self.status[i, o, t] *
+                        m.flows[i, o].max[t] * m.flows[i, o].nominal_value >=
+                        m.flow[i, o, t])
+            else:
+                # if investment is not None, use z-variable to transform
+                # quadratic term
+                expr = (self.z[i, o, t] * m.flows[i, o].max[t] >=
+                        m.flow[i, o, t])
             return expr
         self.max = Constraint(self.MIN_FLOWS, m.TIMESTEPS,
                               rule=_maximum_flow_rule)

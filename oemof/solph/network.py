@@ -14,6 +14,8 @@ available from its original location oemof/oemof/solph/network.py
 SPDX-License-Identifier: GPL-3.0-or-later
 """
 
+import logging
+
 import oemof.network as on
 import oemof.energy_system as es
 from oemof.solph.plumbing import sequence
@@ -169,8 +171,11 @@ class Flow:
             raise ValueError("Using the investment object the nominal_value"
                              " has to be set to None.")
         if self.investment and self.nonconvex:
-            raise ValueError("Investment flows cannot be combined with " +
-                             "nonconvex flows!")
+            logging.warning(
+                "Combining flows with investment attribute"
+                " and nonconvex attribute can increase runtime"
+                " significantly. Your problem may not be solvalble! If so,"
+                " try to reduce model complexity, e.g. aggregate timesteps")
 
 
 class Bus(on.Bus):
