@@ -16,7 +16,7 @@ import pandas as pd
 import dill as pickle
 
 from oemof.groupings import DEFAULT as BY_UID, Grouping, Nodes
-
+from oemof import solph
 
 class EnergySystem:
     r"""Defining an energy supply system to use oemof's solver libraries.
@@ -170,6 +170,15 @@ class EnergySystem:
 
         if filename is None:
             filename = 'es_dump.oemof'
+
+        # remove the model(s) because it can not be pickled
+        models = [k for (k, v) in self.__dict__.items()
+                  if isinstance(v, solph.models.BaseModel)]
+        for m in models:
+            delattr(self, m)
+
+        if hasattr(self, 'models'):
+            delattr(self, 'models')
 
         pickle.dump(self.__dict__, open(os.path.join(dpath, filename), 'wb'))
 

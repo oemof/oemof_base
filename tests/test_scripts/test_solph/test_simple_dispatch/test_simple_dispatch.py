@@ -119,9 +119,6 @@ def test_dispatch_example(solver='cbc', periods=24*5):
     # solve problem
     optimization_model.solve(solver=solver)
 
-    # write back results from optimization object to energysystem
-    optimization_model.results()
-
     # ################################ results ################################
 
     # generic result object

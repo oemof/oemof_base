@@ -22,44 +22,63 @@ class BaseModel(po.ConcreteModel):
 
     Parameters
     ----------
-    energysystem : EnergySystem object
-        Object that holds the nodes of an oemof energy system graph
-    constraint_groups : list (optional)
-        Solph looks for these groups in the given energy system and uses them
-        to create the constraints of the optimization problem.
-        Defaults to :const:`Model.CONSTRAINTS`
     auto_construct : boolean
         If this value is true, the set, variables, constraints, etc. are added,
         automatically when instantiating the model. For sequential model
         building process set this value to False
         and use methods `_add_parent_block_sets`,
-        `_add_parent_block_variables`, `_add_blocks`, `_add_objective`
+        `_add_parent_block_variables`, `_add_child_blocks`, `_add_objective`
 
     """
     CONSTRAINT_GROUPS = []
 
-    def __init__(self, energysystem, **kwargs):
+    def __init__(self, **kwargs):
         super().__init__()
 
         # ########################  Arguments #################################
 
         self.name = kwargs.get('name', type(self).__name__)
 
-        self.es = energysystem
+        if kwargs.get("auto_construct", True):
+            self._prepare(kwargs)
+            self._construct()
 
-        self.timeincrement = sequence(self.es.timeindex.freq.nanos / 3.6e12)
+    def _prepare(self, kwargs):
+        """ Prepare the model for construction.
+
+        Parameters
+        ----------
+        timeindex: pd.DateTimeIndex
+            timeindex for the model
+        nodes: list
+            List with the nodes of the energy system
+        flows: dict
+            Dictionary containing the flow-objects of the energy system. Keys
+            are tuple (input, output) of the flow.
+        groups:
+            Dictionary with the groups of the energy system
+        constraint_groups : list (optional)
+            Solph looks for these groups in the given energy system and uses
+            them to create the constraints of the optimization problem.
+            Defaults to :const:`Model.CONSTRAINTS`
+
+        """
+        self.timeindex = kwargs.get('timeindex')
+
+        self.nodes = kwargs.get('nodes')
+
+        self.flows = kwargs.get('flows')
+
+        self.groups = kwargs.get('groups')
+
+        self.timeincrement = sequence(self.timeindex.freq.nanos / 3.6e12)
 
         self._constraint_groups = (type(self).CONSTRAINT_GROUPS +
                                    kwargs.get('constraint_groups', []))
 
-        self._constraint_groups += [i for i in self.es.groups
+        self._constraint_groups += [i for i in self.groups
                                     if hasattr(i, 'CONSTRAINT_GROUP') and
                                     i not in self._constraint_groups]
-
-        self.flows = self.es.flows()
-
-        if kwargs.get("auto_construct", True):
-            self._construct()
 
     def _construct(self):
         """
@@ -94,16 +113,14 @@ class BaseModel(po.ConcreteModel):
             self.add_component(str(block), block)
             # create constraints etc. related with block for all nodes
             # in the group
-            block._create(group=self.es.groups.get(group))
+            block._create(group=self.groups.get(group))
 
-    def _add_objective(self, sense=po.minimize, update=False):
+    def _add_objective(self, sense=po.minimize):
         """ Method to sum up all objective expressions from the child blocks
         that have been created. This method looks for `_objective_expression`
         attribute in the block definition and will call this method to add
         their return value to the objective function.
         """
-        if update:
-            self.del_component('objective')
 
         expr = 0
 
@@ -112,6 +129,13 @@ class BaseModel(po.ConcreteModel):
                 expr += block._objective_expression()
 
         self.objective = po.Objective(sense=sense, expr=expr)
+
+    def _update_objective(self):
+        """
+        """
+        self.del_component('objective')
+
+        self._add_objective()
 
     def receive_duals(self):
         """ Method sets solver suffix to extract information about dual
@@ -123,13 +147,6 @@ class BaseModel(po.ConcreteModel):
         self.dual = po.Suffix(direction=po.Suffix.IMPORT)
         # reduced costs
         self.rc = po.Suffix(direction=po.Suffix.IMPORT)
-
-    def results(self):
-        """ Returns a nested dictionary of the results of this optimization
-        """
-        result = processing.results(self)
-
-        return result
 
     def solve(self, solver='cbc', solver_io='lp', **kwargs):
         r""" Takes care of communication with solver to solve the model.
@@ -174,23 +191,19 @@ class BaseModel(po.ConcreteModel):
         if status == "ok" and termination_condition == "optimal":
             logging.info("Optimization successful...")
             self.solutions.load_from(results)
-            # storage results in result dictionary of energy system
-            self.es.results = results
+            self.results = results
         elif status == "ok" and termination_condition == "unknown":
             logging.warning("Optimization with unknown termination condition."
                             " Writing output anyway...")
             self.solutions.load_from(results)
-            # storage results in result dictionary of energy system
-            self.es.results = results
+            self.results = results
         elif status == "warning" and termination_condition == "other":
             logging.warning("Optimization might be sub-optimal."
                             " Writing output anyway...")
             self.solutions.load_from(results)
-            # storage results in result dictionary of energy system
-            self.es.results = results
+            self.results = results
         else:
-            # storage results in result dictionary of energy system
-            self.es.results = results
+            self.results = results
             logging.error(
                 "Optimization failed with status %s and terminal condition %s"
                 % (status, termination_condition))
@@ -206,13 +219,10 @@ class BaseModel(po.ConcreteModel):
 
 
 class Model(BaseModel):
-    """ An  energy system model for operational and investment
-    optimization.
+    """ An energy system model for operational and investment optimization.
 
     Parameters
     ----------
-    energysystem : EnergySystem object
-        Object that holds the nodes of an oemof energy system graph
     constraint_groups : list
         Solph looks for these groups in the given energy system and uses them
         to create the constraints of the optimization problem.
@@ -241,17 +251,17 @@ class Model(BaseModel):
                          blocks.InvestmentFlow, blocks.Flow,
                          blocks.NonConvexFlow]
 
-    def __init__(self, energysystem, **kwargs):
-        super().__init__(energysystem, **kwargs)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
     def _add_parent_block_sets(self):
         """
         """
         # set with all nodes
-        self.NODES = po.Set(initialize=[n for n in self.es.nodes])
+        self.NODES = po.Set(initialize=[n for n in self.nodes])
 
         # pyomo set for timesteps of optimization problem
-        self.TIMESTEPS = po.Set(initialize=range(len(self.es.timeindex)),
+        self.TIMESTEPS = po.Set(initialize=range(len(self.timeindex)),
                                 ordered=True)
 
         # previous timesteps

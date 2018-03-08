@@ -121,7 +121,7 @@ def results(om):
     for k in df_dict:
         df_dict[k].set_index('timestep', inplace=True)
         df_dict[k] = df_dict[k].pivot(columns='variable_name', values='value')
-        df_dict[k].index = om.es.timeindex
+        df_dict[k].index = om.timeindex
         try:
             condition = df_dict[k].isnull().any()
             scalars = df_dict[k].loc[:, condition].dropna().iloc[0]
@@ -185,19 +185,19 @@ def meta_results(om, undefined=False):
     for k1 in ['Problem', 'Solver']:
         k1 = k1.lower()
         meta_res[k1] = {}
-        for k2, v2 in om.es.results[k1][0].items():
+        for k2, v2 in om.results[k1][0].items():
             try:
-                if str(om.es.results[k1][0][k2]) == '<undefined>':
+                if str(om.results[k1][0][k2]) == '<undefined>':
                     if undefined:
                         meta_res[k1][k2] = str(
-                            om.es.results[k1][0][k2])
+                            om.results[k1][0][k2])
                 else:
-                    meta_res[k1][k2] = om.es.results[k1][0][k2]
+                    meta_res[k1][k2] = om.results[k1][0][k2]
             except TypeError:
                 if undefined:
                     msg = "Cannot fetch meta results of type {0}"
                     meta_res[k1][k2] = msg.format(
-                        type(om.es.results[k1][0][k2]))
+                        type(om.results[k1][0][k2]))
 
     return meta_res
 

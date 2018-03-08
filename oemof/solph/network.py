@@ -14,10 +14,12 @@ available from its original location oemof/oemof/solph/network.py
 SPDX-License-Identifier: GPL-3.0-or-later
 """
 
+import logging
+
 import oemof.network as on
 import oemof.energy_system as es
 from oemof.solph.plumbing import sequence
-
+from oemof.outputlib import processing
 
 class EnergySystem(es.EnergySystem):
     """ A variant of :class:`EnergySystem
@@ -45,6 +47,82 @@ class EnergySystem(es.EnergySystem):
             GROUPINGS + [component_grouping] + [custom_component_grouping] +
             kwargs.get('groupings', []))
         super().__init__(**kwargs)
+
+        self.models = {}
+        self.results = {}
+        self.active_model = None
+
+    def add_model(self, model):
+        """ Add a model to the energysystem.
+
+        Parameters
+        ----------
+        model : oemof.solph.BaseModel
+            A instance to the oemof.solph.BaseModel class.
+        """
+        model._prepare({
+            'flows': self.flows(),
+            'nodes': self.nodes,
+            'groups': self.groups,
+            'timeindex': self.timeindex})
+        model._construct()
+
+        self.models[model.name] = model
+
+    def use(self, model):
+        """ Tell the energysystem which models should be used for computation.
+
+        Parameters
+        ----------
+        model : oemof.solph.BaseModel or string
+            A instance to the oemof.solph.BaseModel class or string with the
+            name of the model.
+        """
+        if isinstance(model, str):
+            m = model
+        else:
+            m = model.name
+
+        if m in self.models:
+            setattr(self, 'active_model', m)
+        else:
+            raise ValueError("Can not use model with name: {}!".format(m) +
+                             " Did you add the model to your energysystem?")
+
+    def compute(self, solver='cbc'):
+        """ Compute the results for the active model of the energysystem
+        object.      .
+
+        Parameters
+        ----------
+        solver : string
+            Name of the solver to compute the results.
+        """
+        if self.results.get(self.active_model):
+            logging.warn("Results already exist for the model {}.".format(
+                         self.active_model) + " Result will be overwritten!")
+
+        self.models[self.active_model].solve(solver='cbc')
+
+        # write results to results attribute
+        self.results[self.active_model] = processing.results(
+            self.models[self.active_model])
+
+    def get_results(self, model=None):
+        """ Get the results from a specified model.
+
+        Parameters
+        ----------
+        model : string (optional)
+            Name of the model, if not set, the active model is used
+        """
+        if model is None:
+            model = self.active_model
+
+        if self.results.get(model) is None:
+            self.results[model] = processing.results(self.models[model])
+
+        return self.results[model]
 
 
 class Flow:
