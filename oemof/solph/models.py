@@ -8,13 +8,16 @@ available from its original location oemof/oemof/solph/models.py
 SPDX-License-Identifier: GPL-3.0-or-later
 """
 
-import pyomo.environ as po
-from pyomo.opt import SolverFactory
+import logging
+import re
+
 from pyomo.core.plugins.transform.relax_integrality import RelaxIntegrality
+from pyomo.opt import SolverFactory
+import pyomo.environ as po
+
+from oemof.outputlib import processing
 from oemof.solph import blocks
 from oemof.solph.plumbing import sequence
-from oemof.outputlib import processing
-import logging
 
 
 class BaseModel(po.ConcreteModel):
@@ -30,7 +33,7 @@ class BaseModel(po.ConcreteModel):
         Defaults to :const:`Model.CONSTRAINTS`
     objective_weighting : array like (optional)
         Weights used for temporal objective function
-        expressions. If nothing is passed `timeincrement` will be used which 
+        expressions. If nothing is passed `timeincrement` will be used which
         is calculated from the freq length of the energy system timeindex .
     auto_construct : boolean
         If this value is true, the set, variables, constraints, etc. are added,
@@ -61,6 +64,12 @@ class BaseModel(po.ConcreteModel):
             self.timeincrement = sequence(1)
 
 
+        self.report = {
+            'sets': {},
+            'variables': {},
+            'constraints': {},
+            'objective': {},
+            'parameters': {}}
 
         self.objective_weighting = kwargs.get('objective_weighting',
                                               self.timeincrement)
@@ -76,6 +85,35 @@ class BaseModel(po.ConcreteModel):
 
         if kwargs.get("auto_construct", True):
             self._construct()
+
+    def generate_report(self):
+        result = (
+                r'\begin{{aligned}}'
+                '\n'
+                r'\operatorname{{minimize}} & {objective} \\'
+                '\n'
+                r'\operatorname{{s.t.:}} \\'
+                '\n'
+                r'{constraints} \\'
+                '\n'
+                r'{variables}'
+                '\n'
+                '\end{{aligned}}')
+        components = {}
+        components['objective'] = (r' \\' + '\n + & ').join(
+                r'\underbrace{{{}}}_{{\textrm{{{}}}}}'.format(objective, name)
+                for name, objective in self.report['objective'].items())
+        components['constraints'] = (r' \\' + '\n').join(
+                re.sub(r'(\\leq|\\geq|=|<|>)', r'\1{} &', c)
+                for c in self.report['constraints'].values())
+        components['variables'] = (r' \\' + '\n').join(
+                re.sub(
+                    r'(\\forall.*)',
+                    r' \\\\' + '\n' + r' & \1',
+                    re.sub(r'(\\leq|\\geq|=|<|>)', r'\1{} &', constraint))
+                for variable in self.report['variables']
+                for constraint in self.report['variables'][variable].values())
+        return result.format(**components)
 
     def _construct(self):
         """
@@ -295,16 +333,25 @@ class Model(BaseModel):
         """
         self.flow = po.Var(self.FLOWS, self.TIMESTEPS,
                            within=po.Reals)
+        self.report['variables']['flow'] = {}
 
         for (o, i) in self.FLOWS:
             for t in self.TIMESTEPS:
                 if (o, i) in self.UNIDIRECTIONAL_FLOWS:
                     self.flow[o, i, t].setlb(0)
                 if self.flows[o, i].nominal_value is not None:
+                    self.report['variables']['flow'].update({
+                        'upper bound': (
+                            'flow_{i,o,t} \leq edge^{max}_{i,o,t} \cdot '
+                            'edge^{nv}_{i,o}')})
                     self.flow[o, i, t].setub(self.flows[o, i].max[t] *
                                              self.flows[o, i].nominal_value)
 
                     if self.flows[o, i].actual_value[t] is not None:
+                        self.report['variables']['flow'].update({
+                            'value': (
+                                'flow_{i,o,t} = edge^{av}_{i,o,t} \cdot '
+                                'edge^{nv}_{i,o}')})
                         # pre- optimized value of flow variable
                         self.flow[o, i, t].value = (
                             self.flows[o, i].actual_value[t] *
@@ -314,6 +361,10 @@ class Model(BaseModel):
                             self.flow[o, i, t].fix()
 
                     if not self.flows[o, i].nonconvex:
+                        self.report['variables']['flow'].update({
+                            'lower bound': (
+                                'flow_{i,o,t} \geq edge^{min}_{i,o,t} \cdot '
+                                'edge^{nv}_{i,o}')})
                         # lower bound of flow variable
                         self.flow[o, i, t].setlb(
                             self.flows[o, i].min[t] *

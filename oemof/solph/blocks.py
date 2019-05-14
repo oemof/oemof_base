@@ -128,15 +128,22 @@ class Flow(SimpleBlock):
         self.negative_gradient = Var(self.NEGATIVE_GRADIENT_FLOWS,
                                      m.TIMESTEPS)
 
+
         self.integer_flow = Var(self.INTEGER_FLOWS,
                                 m.TIMESTEPS, within=NonNegativeIntegers)
         # set upper bound of gradient variable
         for i, o, f in group:
             if m.flows[i, o].positive_gradient['ub'][0] is not None:
+                m.report['variables']['positive_gradient'] = {
+                    'upper bound':
+                        'pg_{i,o,t} \leq edge^{pg}_{i,o,t} \cdot edge^{nv}'}
                 for t in m.TIMESTEPS:
                     self.positive_gradient[i, o, t].setub(
                         f.positive_gradient['ub'][t] * f.nominal_value)
             if m.flows[i, o].negative_gradient['ub'][0] is not None:
+                m.report['variables']['negative_gradient'] = {
+                    'upper bound':
+                        'ng_{i,o,t} \ļeq edge^{ng}_{i,o,t} \cdot edge^{nv}'}
                 for t in m.TIMESTEPS:
                     self.negative_gradient[i, o, t].setub(
                         f.negative_gradient['ub'][t] * f.nominal_value)
@@ -153,6 +160,10 @@ class Flow(SimpleBlock):
                        m.flows[inp, out].nominal_value)
                 self.summed_max.add((inp, out), lhs <= rhs)
         self.summed_max = Constraint(self.SUMMED_MAX_FLOWS, noruleinit=True)
+        if self.SUMMED_MAX_FLOWS:
+            m.report['constraints']['summed max'] = (
+                    r'flow_{i,o,t} \cdot \tau \leq edge^{smax}_{i,o} \cdot '
+                    'edge_^{nv}_{i,o}')
         self.summed_max_build = BuildAction(rule=_flow_summed_max_rule)
 
         def _flow_summed_min_rule(model):
@@ -165,7 +176,11 @@ class Flow(SimpleBlock):
                        m.flows[inp, out].nominal_value)
                 self.summed_min.add((inp, out), lhs >= rhs)
         self.summed_min = Constraint(self.SUMMED_MIN_FLOWS, noruleinit=True)
-        self.summed_min_build = BuildAction(rule=_flow_summed_min_rule)
+        if self.SUMMED_MIN_FLOWS:
+            m.report['constraints']['summed min'] = (
+                    r'flow_{i,o,t} \cdot \tau \geq edge^{smin}_{i,o} \cdot '
+                    'edge_^{nv}_{i,o}')
+            self.summed_min_build = BuildAction(rule=_flow_summed_min_rule)
 
         def _positive_gradient_flow_rule(model):
             """Rule definition for positive gradient constraint.
@@ -179,10 +194,13 @@ class Flow(SimpleBlock):
                                                           lhs <= rhs)
                     else:
                         pass  # return(Constraint.Skip)
-        self.positive_gradient_constr = Constraint(
-            self.POSITIVE_GRADIENT_FLOWS, m.TIMESTEPS, noruleinit=True)
-        self.positive_gradient_build = BuildAction(
-            rule=_positive_gradient_flow_rule)
+        if self.POSITIVE_GRADIENT_FLOWS:
+            self.positive_gradient_constr = Constraint(
+                self.POSITIVE_GRADIENT_FLOWS, m.TIMESTEPS, noruleinit=True)
+            m.report['constraints']['positive gradient'] = (
+                    'pg_{i,o,t} \geq flow_{i,o,t} - flow_{i,o,t-1}')
+            self.positive_gradient_build = BuildAction(
+                rule=_positive_gradient_flow_rule)
 
         def _negative_gradient_flow_rule(model):
             """Rule definition for negative gradient constraint.
@@ -196,18 +214,23 @@ class Flow(SimpleBlock):
                                                           lhs <= rhs)
                     else:
                         pass  # return(Constraint.Skip)
-        self.negative_gradient_constr = Constraint(
-            self.NEGATIVE_GRADIENT_FLOWS, m.TIMESTEPS, noruleinit=True)
-        self.negative_gradient_build = BuildAction(
-            rule=_negative_gradient_flow_rule)
+        if self.NEGATIVE_GRADIENT_FLOWS:
+            self.negative_gradient_constr = Constraint(
+                self.NEGATIVE_GRADIENT_FLOWS, m.TIMESTEPS, noruleinit=True)
+            m.report['constraints']['negative gradient'] = (
+                'ng_{i,o,t} \geq flow_{i,o,t-1} - flow_{i,o,t}')
+            self.negative_gradient_build = BuildAction(
+                rule=_negative_gradient_flow_rule)
 
         def _integer_flow_rule(block, i, o, t):
             """Force flow variable to NonNegativeInteger values.
             """
             return self.integer_flow[i, o, t] == m.flow[i, o, t]
-
-        self.integer_flow_constr = Constraint(self.INTEGER_FLOWS, m.TIMESTEPS,
-                                              rule=_integer_flow_rule)
+        if self.INTEGER_FLOWS:
+            m.report['constraints']['integer flow'] = (
+                'flow_{i,o,t} = integer_flow_{i,o,t}')
+            self.integer_flow_constr = Constraint(self.INTEGER_FLOWS, m.TIMESTEPS,
+                                                  rule=_integer_flow_rule)
 
     def _objective_expression(self):
         r""" Objective expression for all standard flows with fixed costs
@@ -220,17 +243,26 @@ class Flow(SimpleBlock):
 
         for i, o in m.FLOWS:
             if m.flows[i, o].variable_costs[0] is not None:
+                m.report['objective']['variable costs'] = (
+                    '\sum_{i,o \in F} \sum_{t \in T} flow_{i,o,t} \cdot '
+                    r'\tau^{obj} \cdot edge^{cvar}_{i,o,t}')
                 for t in m.TIMESTEPS:
                     variable_costs += (m.flow[i, o, t] * m.objective_weighting[t] *
                                        m.flows[i, o].variable_costs[t])
 
             if m.flows[i, o].positive_gradient['ub'][0] is not None:
+                m.report['objective']['positive gradient costs'] = (
+                    '\sum_{i,o \in F} \sum_{t \in T} pg_{i,o,t} \cdot '
+                    'edge^{pg,cost}_{i,o}')
                 for t in m.TIMESTEPS:
                     gradient_costs += (self.positive_gradient[i, o, t] *
                                        m.flows[i, o].positive_gradient[
                                            'costs'])
 
             if m.flows[i, o].negative_gradient['ub'][0] is not None:
+                m.report['objective']['negative gradient costs'] = (
+                    '\sum_{i,o \in F} \sum_{t \in T} ng_{i,o,t} \cdot '
+                    'edge^{ng,cost}_{i,o}')
                 for t in m.TIMESTEPS:
                     gradient_costs += (self.negative_gradient[i, o, t] *
                                        m.flows[i, o].negative_gradient[
@@ -358,8 +390,12 @@ class InvestmentFlow(SimpleBlock):
             return (m.flows[i, o].investment.minimum,
                     m.flows[i, o].investment.maximum)
         # create variable bounded for flows with investement attribute
-        self.invest = Var(self.FLOWS, within=NonNegativeReals,
-                          bounds=_investvar_bound_rule)
+        if self.FLOWS:
+            m.report['variables']['investment'] = {
+                'ub': 'investment_{i,o} \leq edge^{inv,max}_{i,o}',
+                'lb': 'investment_{i,o} \geq edge^{inv,min}_{i,o}'}
+            self.invest = Var(self.FLOWS, within=NonNegativeReals,
+                              bounds=_investvar_bound_rule)
 
         # ######################### CONSTRAINTS ###############################
 
@@ -372,8 +408,13 @@ class InvestmentFlow(SimpleBlock):
             return (m.flow[i, o, t] == (
                 (m.flows[i, o].investment.existing + self.invest[i, o]) *
                  m.flows[i, o].actual_value[t]))
-        self.fixed = Constraint(self.FIXED_FLOWS, m.TIMESTEPS,
-                                rule=_investflow_fixed_rule)
+        if self.FIXED_FLOWS:
+            m.report['variables']['flow'].update({
+                'value': (
+                    'flow_{i,o,t} = edge^{inv,exist} + investment_{i,o} \cdot '
+                    r'edge^{av}_{i,o,t} \forall (i,o) \in F_{I,fix}')})
+            self.fixed = Constraint(self.FIXED_FLOWS, m.TIMESTEPS,
+                                    rule=_investflow_fixed_rule)
 
         def _max_investflow_rule(block, i, o, t):
             """Rule definition of constraint setting an upper bound of flow
@@ -383,8 +424,13 @@ class InvestmentFlow(SimpleBlock):
                 (m.flows[i, o].investment.existing + self.invest[i, o]) *
                  m.flows[i, o].max[t]))
             return expr
-        self.max = Constraint(self.FLOWS, m.TIMESTEPS,
-                              rule=_max_investflow_rule)
+        if self.FLOWS:
+            m.report['variables']['flow'].update({
+                'upper bound contr': (
+                    'flow_{i,o,t} \leq edge^{inv,exist} + investment_{i,o} '
+                    r'\cdot edge^{max}_{i,o,t} \forall (i,o) \in F_I')})
+            self.max = Constraint(self.FLOWS, m.TIMESTEPS,
+                                  rule=_max_investflow_rule)
 
         def _min_investflow_rule(block, i, o, t):
             """Rule definition of constraint setting a lower bound on flow
