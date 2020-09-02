@@ -10,6 +10,42 @@ environment:
       PYTHON_HOME: C:\Python36
       PYTHON_VERSION: '3.6'
       PYTHON_ARCH: '32'
+    - TOXENV: py36,codecov,coveralls
+      TOXPYTHON: C:\Python36\python.exe
+      PYTHON_HOME: C:\Python36
+      PYTHON_VERSION: '3.6'
+      PYTHON_ARCH: '32'
+    - TOXENV: py36,codecov,coveralls
+      TOXPYTHON: C:\Python36-x64\python.exe
+      PYTHON_HOME: C:\Python36-x64
+      PYTHON_VERSION: '3.6'
+      PYTHON_ARCH: '64'
+    - TOXENV: py37,codecov,coveralls
+      TOXPYTHON: C:\Python37\python.exe
+      PYTHON_HOME: C:\Python37
+      PYTHON_VERSION: '3.7'
+      PYTHON_ARCH: '32'
+    - TOXENV: py37,codecov,coveralls
+      TOXPYTHON: C:\Python37-x64\python.exe
+      PYTHON_HOME: C:\Python37-x64
+      PYTHON_VERSION: '3.7'
+      PYTHON_ARCH: '64'
+    - TOXENV: py38,codecov,coveralls
+      TOXPYTHON: C:\Python38\python.exe
+      PYTHON_HOME: C:\Python38
+      PYTHON_VERSION: '3.8'
+      PYTHON_ARCH: '32'
+    - TOXENV: py38,codecov,coveralls
+      TOXPYTHON: C:\Python38-x64\python.exe
+      PYTHON_HOME: C:\Python38-x64
+      PYTHON_VERSION: '3.8'
+      PYTHON_ARCH: '64'
+    - TOXENV: py37-nocov
+      TOXPYTHON: C:\Python37-x64\python.exe
+      PYTHON_HOME: C:\Python37-x64
+      PYTHON_VERSION: '3.7'
+      PYTHON_ARCH: '64'
+      WHEEL_PATH: .tox/dist
 init:
   - ps: echo $env:TOXENV
   - ps: ls C:\Python*
@@ -19,7 +55,7 @@ install:
   - '%PYTHON_HOME%\Scripts\easy_install --version'
   - '%PYTHON_HOME%\Scripts\pip --version'
   - '%PYTHON_HOME%\Scripts\tox --version'
-  - ps: (new-object net.webclient).DownloadFile('https://osf.io/rmfb7/download', 'my_test_solver.exe')
+  - ps: (new-object net.webclient).DownloadFile('https://osf.io/xyqre/download', 'cbc.exe')
 
 test_script:
   - cmd /E:ON /V:ON /C .\ci\appveyor-with-compiler.cmd %PYTHON_HOME%\Scripts\tox
