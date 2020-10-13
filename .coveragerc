@@ -8,7 +8,6 @@ source =
     tests
 parallel = true
 omit = *custom*
-       *test*
 
 [report]
 show_missing = true

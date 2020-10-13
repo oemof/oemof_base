@@ -145,12 +145,7 @@ class TestParameterResult:
         sequences_attributes = {
             'fix': self.demand_values,
         }
-        default_sequences = [
-            'fix'
-        ]
-        for attr in default_sequences:
-            if attr not in sequences_attributes:
-                sequences_attributes[attr] = [None]
+
         assert_frame_equal(
             param_results[(b_el2, demand)]['sequences'],
             pandas.DataFrame(sequences_attributes), check_like=True
