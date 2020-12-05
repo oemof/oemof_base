@@ -229,9 +229,17 @@ class Bus(on.Bus):
      * :py:class:`~oemof.solph.blocks.Bus`
 
     """
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, balanced=True, inputs=None, outputs=None, **kwargs):
+        if outputs is None:
+            outputs = {}
+        if inputs is None:
+            inputs = {}
+        kwargs["balanced"] = balanced
+        kwargs["inputs"] = inputs
+        kwargs["outputs"] = outputs
         super().__init__(*args, **kwargs)
-        self.balanced = kwargs.get('balanced', True)
+
+        self.balanced = balanced
 
     def constraint_group(self):
         if self.balanced:
@@ -243,8 +251,12 @@ class Bus(on.Bus):
 class Sink(on.Sink):
     """An object with one input flow.
     """
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, inputs=None, **kwargs):
+        if inputs is None:
+            inputs = {}
+        kwargs["inputs"] = inputs
         super().__init__(*args, **kwargs)
+
         check_node_object_for_missing_attribute(self, "inputs")
 
     def constraint_group(self):
@@ -254,7 +266,10 @@ class Sink(on.Sink):
 class Source(on.Source):
     """An object with one output flow.
     """
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, outputs=None, **kwargs):
+        if outputs is None:
+            outputs = {}
+        kwargs["outputs"] = outputs
         super().__init__(*args, **kwargs)
         check_node_object_for_missing_attribute(self, "outputs")
 
@@ -311,7 +326,13 @@ class Transformer(on.Transformer):
     The following sets, variables, constraints and objective parts are created
      * :py:class:`~oemof.solph.blocks.Transformer`
     """
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, inputs=None, outputs=None, **kwargs):
+        if outputs is None:
+            outputs = {}
+        if inputs is None:
+            inputs = {}
+        kwargs["inputs"] = inputs
+        kwargs["outputs"] = outputs
         super().__init__(*args, **kwargs)
 
         check_node_object_for_missing_attribute(self, "inputs")
