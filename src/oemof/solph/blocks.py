@@ -93,6 +93,13 @@ class Flow(SimpleBlock):
     The expression can be accessed by :attr:`om.Flow.variable_costs` and
     their value after optimization by :meth:`om.Flow.variable_costs()` .
 
+
+    Additionally, if :attr:`positive}\_gradient['costs']` is set by the user:
+        .. math::
+            \sum_t \sum_{i, o} positive_gradient(i, o, t) * \
+            positive\_gradient\_costs
+
+    The same works for `negative_gradient` costs.
     """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -114,6 +121,7 @@ class Flow(SimpleBlock):
 
         # ########################## SETS #################################
         # set for all flows with an global limit on the flow over time
+        self.FLOWS = Set(initialize=[(g[0], g[1]) for g in group])
         self.SUMMED_MAX_FLOWS = Set(initialize=[
             (g[0], g[1]) for g in group if g[2].summed_max is not None and
             g[2].nominal_value is not None])
@@ -148,11 +156,17 @@ class Flow(SimpleBlock):
             if m.flows[i, o].positive_gradient['ub'][0] is not None:
                 for t in m.TIMESTEPS:
                     self.positive_gradient[i, o, t].setub(
-                        f.positive_gradient['ub'][t] * f.nominal_value)
+                        f.positive_gradient['ub'][t] *
+                        f.nominal_value *
+                        f.max[t] *
+                        m.timeincrement[t])
             if m.flows[i, o].negative_gradient['ub'][0] is not None:
                 for t in m.TIMESTEPS:
                     self.negative_gradient[i, o, t].setub(
-                        f.negative_gradient['ub'][t] * f.nominal_value)
+                        f.negative_gradient['ub'][t] *
+                        f.nominal_value *
+                        f.max[t] *
+                        m.timeincrement[t])
 
         # ######################### CONSTRAINTS ###############################
 
@@ -188,10 +202,10 @@ class Flow(SimpleBlock):
                     if ts > 0:
                         lhs = m.flow[inp, out, ts] - m.flow[inp, out, ts-1]
                         rhs = self.positive_gradient[inp, out, ts]
-                        self.positive_gradient_constr.add((inp, out, ts),
-                                                          lhs <= rhs)
+                        self.positive_gradient_constr.add(
+                            (inp, out, ts), lhs <= rhs)
                     else:
-                        pass  # return(Constraint.Skip)
+                        pass
         self.positive_gradient_constr = Constraint(
             self.POSITIVE_GRADIENT_FLOWS, m.TIMESTEPS, noruleinit=True)
         self.positive_gradient_build = BuildAction(
@@ -205,10 +219,10 @@ class Flow(SimpleBlock):
                     if ts > 0:
                         lhs = m.flow[inp, out, ts-1] - m.flow[inp, out, ts]
                         rhs = self.negative_gradient[inp, out, ts]
-                        self.negative_gradient_constr.add((inp, out, ts),
-                                                          lhs <= rhs)
+                        self.negative_gradient_constr.add(
+                            (inp, out, ts), lhs <= rhs)
                     else:
-                        pass  # return(Constraint.Skip)
+                        pass
         self.negative_gradient_constr = Constraint(
             self.NEGATIVE_GRADIENT_FLOWS, m.TIMESTEPS, noruleinit=True)
         self.negative_gradient_build = BuildAction(
@@ -226,12 +240,15 @@ class Flow(SimpleBlock):
         r""" Objective expression for all standard flows with fixed costs
         and variable costs.
         """
+        if not hasattr(self, 'FLOWS'):
+            return 0
+
         m = self.parent_block()
 
         variable_costs = 0
         gradient_costs = 0
 
-        for i, o in m.FLOWS:
+        for i, o in self.FLOWS:
             if m.flows[i, o].variable_costs[0] is not None:
                 for t in m.TIMESTEPS:
                     variable_costs += (m.flow[i, o, t] *
@@ -249,6 +266,9 @@ class Flow(SimpleBlock):
                     gradient_costs += (self.negative_gradient[i, o, t] *
                                        m.flows[i, o].negative_gradient[
                                            'costs'])
+
+        self.variable_costs = Expression(expr=variable_costs)
+        self.gradient_costs = Expression(expr=gradient_costs)
 
         return variable_costs + gradient_costs
 
@@ -345,6 +365,7 @@ class InvestmentFlow(SimpleBlock):
             \sum_t P(t) \cdot \tau(t) \geq ( P_{invest} + P_{exist} )
             \cdot f_{sum, min}
 
+    The same works for `negative_gradient` costs.
 
     **Objective function**
 
@@ -488,6 +509,14 @@ class InvestmentFlow(SimpleBlock):
             (g[0], g[1]) for g in group if (
                 g[2].min[0] != 0 or len(g[2].min) > 1)])
 
+        self.NEGATIVE_GRADIENT_FLOWS = Set(
+            initialize=[(g[0], g[1]) for g in group
+                        if g[2].negative_gradient['ub'][0] is not None])
+
+        self.POSITIVE_GRADIENT_FLOWS = Set(
+            initialize=[(g[0], g[1]) for g in group
+                        if g[2].positive_gradient['ub'][0] is not None])
+
         # ######################### VARIABLES #################################
         def _investvar_bound_rule(block, i, o):
             """Rule definition for bounds of invest variable.
@@ -501,6 +530,12 @@ class InvestmentFlow(SimpleBlock):
         # create invest variable for a investment flow
         self.invest = Var(self.INVESTFLOWS, within=NonNegativeReals,
                           bounds=_investvar_bound_rule)
+
+        self.positive_gradient = Var(self.POSITIVE_GRADIENT_FLOWS,
+                                     m.TIMESTEPS)
+
+        self.negative_gradient = Var(self.NEGATIVE_GRADIENT_FLOWS,
+                                     m.TIMESTEPS)
 
         # create status variable for a non-convex investment flow
         self.invest_status = Var(self.NON_CONVEX_INVESTFLOWS, within=Binary)
@@ -584,6 +619,65 @@ class InvestmentFlow(SimpleBlock):
         self.summed_min = Constraint(self.SUMMED_MIN_INVESTFLOWS,
                                      rule=_summed_min_investflow_rule)
 
+        # set upper bound of gradient variables via constraints
+        def _ub_positive_gradient(block, i, o, t):
+            """
+            """
+            return (block.positive_gradient[i, o, t] <=
+                    m.flows[i, o].positive_gradient['ub'][t] *
+                    m.flows[i, o].max[t] *
+                    block.invest[i, o] *
+                    m.timeincrement[t])
+        self.ub_positive_gradient_constr = Constraint(
+            self.POSITIVE_GRADIENT_FLOWS, m.TIMESTEPS,
+            rule=_ub_positive_gradient)
+
+        def _ub_negative_gradient(block, i, o, t):
+            """
+            """
+            return (block.negative_gradient[i, o, t] <=
+                    m.flows[i, o].negative_gradient['ub'][t] *
+                    m.flows[i, o].max[t] *
+                    block.invest[i, o] *
+                    m.timeincrement[t])
+        self.ub_negative_gradient_constr = Constraint(
+            self.NEGATIVE_GRADIENT_FLOWS, m.TIMESTEPS,
+            rule=_ub_negative_gradient)
+
+        def _positive_gradient_flow_rule(model):
+            """Rule definition for positive gradient constraint.
+            """
+            for inp, out in self.POSITIVE_GRADIENT_FLOWS:
+                for ts in m.TIMESTEPS:
+                    if ts > 0:
+                        lhs = m.flow[inp, out, ts] - m.flow[inp, out, ts-1]
+                        rhs = self.positive_gradient[inp, out, ts]
+                        self.positive_gradient_constr.add(
+                            (inp, out, ts), lhs <= rhs)
+                    else:
+                        pass
+        self.positive_gradient_constr = Constraint(
+            self.POSITIVE_GRADIENT_FLOWS, m.TIMESTEPS, noruleinit=True)
+        self.positive_gradient_build = BuildAction(
+            rule=_positive_gradient_flow_rule)
+
+        def _negative_gradient_flow_rule(model):
+            """Rule definition for negative gradient constraint.
+            """
+            for inp, out in self.NEGATIVE_GRADIENT_FLOWS:
+                for ts in m.TIMESTEPS:
+                    if ts > 0:
+                        lhs = m.flow[inp, out, ts-1] - m.flow[inp, out, ts]
+                        rhs = self.negative_gradient[inp, out, ts]
+                        self.negative_gradient_constr.add(
+                            (inp, out, ts), lhs <= rhs)
+                    else:
+                        pass
+        self.negative_gradient_constr = Constraint(
+            self.NEGATIVE_GRADIENT_FLOWS, m.TIMESTEPS, noruleinit=True)
+        self.negative_gradient_build = BuildAction(
+            rule=_negative_gradient_flow_rule)
+
     def _objective_expression(self):
         r""" Objective expression for flows with investment attribute of type
         class:`.Investment`. The returned costs are fixed, variable and
@@ -594,10 +688,33 @@ class InvestmentFlow(SimpleBlock):
 
         m = self.parent_block()
         investment_costs = 0
+        gradient_costs = 0
+        variable_costs = 0
+
+        for i, o in self.INVESTFLOWS:
+            if m.flows[i, o].variable_costs[0] is not None:
+                for t in m.TIMESTEPS:
+                    variable_costs += (m.flow[i, o, t] *
+                                       m.flows[i, o].variable_costs[t])
+
+            if (i, o) in self.POSITIVE_GRADIENT_FLOWS and \
+                    m.flows[i, o].positive_gradient['ub'][0] is not None:
+                for t in m.TIMESTEPS:
+                    gradient_costs += (self.positive_gradient[i, o, t] *
+                                       m.flows[i, o].positive_gradient[
+                                           'costs'])
+
+            if (i, o) in self.NEGATIVE_GRADIENT_FLOWS and \
+                    m.flows[i, o].negative_gradient['ub'][0] is not None:
+                for t in m.TIMESTEPS:
+                    gradient_costs += (self.negative_gradient[i, o, t] *
+                                       m.flows[i, o].negative_gradient[
+                                           'costs'])
 
         for i, o in self.CONVEX_INVESTFLOWS:
             investment_costs += (
                 self.invest[i, o] * m.flows[i, o].investment.ep_costs)
+
         for i, o in self.NON_CONVEX_INVESTFLOWS:
             investment_costs += (
                     self.invest[i, o] *
@@ -606,7 +723,10 @@ class InvestmentFlow(SimpleBlock):
                     m.flows[i, o].investment.offset)
 
         self.investment_costs = Expression(expr=investment_costs)
-        return investment_costs
+        self.variable_costs = Expression(expr=variable_costs)
+        self.gradient_costs = Expression(expr=gradient_costs)
+
+        return gradient_costs + variable_costs + investment_costs
 
 
 class Bus(SimpleBlock):
