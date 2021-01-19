@@ -833,6 +833,23 @@ class TestsConstraint:
         )
         self.compare_lp_files('dsm_module_interval.lp')
 
+    def test_flow_schedule(self):
+        """Constraint test of scheduled flows."""
+        b_gas = solph.Bus(label='bus_gas')
+        b_th = solph.Bus(label='bus_th_penalty')
+
+        schedule = [None, 300, 50]
+        solph.Transformer(
+            label="boiler_penalty",
+            inputs={b_gas: solph.Flow()},
+            outputs={b_th: solph.Flow(nominal_value=200, variable_costs=0,
+                                      schedule_cost_pos=[0, 800, 900],
+                                      schedule_cost_neg=999,
+                                      schedule=schedule)},
+            conversion_factors={b_th: 1}
+        )
+        self.compare_lp_files('flow_schedule.lp')
+
     def test_nonconvex_investment_storage_without_offset(self):
         """All invest variables are coupled. The invest variables of the Flows
         will be created during the initialisation of the storage e.g. battery

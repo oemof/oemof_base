@@ -11,7 +11,8 @@ API changes
 New features
 ^^^^^^^^^^^^^^^^^^^^
 
-* something
+* It is now possible to determine a schedule for a flow. Flow will be pushed
+  to the schedule, if possible.
 
 New components/constraints
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -46,4 +47,4 @@ Other changes
 Contributors
 ^^^^^^^^^^^^^^^^^^^^
 
-* something
+* Caterina Köhl

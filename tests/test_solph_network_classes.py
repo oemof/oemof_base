@@ -108,3 +108,34 @@ def test_warning_fixed_still_used():
         solph.Flow(fixed=True)
         assert len(w) != 0
         assert msg == str(w[-1].message)
+
+
+def test_missing_schedule_costs_values():
+    """
+    If schedule attribute is used and negative and positive schedule costs
+    are missing, an error will be raised.
+    """
+    msg = ("The schedule attribute and the associated costs "
+           "need to be used in combination. \n Please set "
+           "the `schedule_cost_neg` and `schedule_cost_pos` "
+           "attributes of the flow.")
+    with pytest.raises(ValueError, match=msg):
+        solph.Flow(schedule=[54, 74, 90])
+
+
+def test_missing_schedule_neg_cost_value():
+    msg = ("The schedule attribute and the associated costs "
+           "need to be used in combination. \n Please set "
+           "the `schedule_cost_neg` and `schedule_cost_pos` "
+           "attributes of the flow.")
+    with pytest.raises(ValueError, match=msg):
+        solph.Flow(schedule=[54, 74, 90], schedule_cost_pos=1000)
+
+
+def test_missing_schedule_pos_cost_value():
+    msg = ("The schedule attribute and the associated costs "
+           "need to be used in combination. \n Please set "
+           "the `schedule_cost_neg` and `schedule_cost_pos` "
+           "attributes of the flow.")
+    with pytest.raises(ValueError, match=msg):
+        solph.Flow(schedule=[54, 74, 90], schedule_cost_neg=1000)

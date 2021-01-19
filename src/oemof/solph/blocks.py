@@ -39,7 +39,16 @@ class Flow(SimpleBlock):
         Difference of a flow in consecutive timesteps if flow is increased
         indexed by NEGATIVE_GRADIENT_FLOWS, TIMESTEPS.
 
-    **The following sets are created:** (-> see basic sets at :class:`.Model` )
+    schedule_slack_pos :
+        Difference of a flow to schedule in consecutive timesteps if flow
+        has deficit to schedule. Indexed by SCHEDULE_FLOWS, TIMESTEPS.
+
+    schedule_slack_neg :
+        Excees of flow compared to schedule. Indexed by SCHEDULE_FLOWS,
+        TIMESTEPS.
+
+    **The following sets are created:** (-> see basic sets at
+    :class:`.Model` )
 
     SUMMED_MAX_FLOWS
         A set of flows with the attribute :attr:`summed_max` being not None.
@@ -54,6 +63,9 @@ class Flow(SimpleBlock):
     INTEGER_FLOWS
         A set of flows where the attribute :attr:`integer` is True (forces flow
         to only take integer values)
+    SCHEDULE_FLOWS
+        A set of flows with :attr:`schedule` not None (forces flow to follow
+        schedule)
 
     **The following constraints are build:**
 
@@ -84,16 +96,28 @@ class Flow(SimpleBlock):
           \forall (i, o) \in \textrm{POSITIVE\_GRADIENT\_FLOWS}, \\
           \forall t \in \textrm{TIMESTEPS}.
 
+    Schedule constraint :attr:`om.Flow.positive_gradient_constr[i, o]`:
+        .. math:: flow(i, o, t) + schedule_slack_pos(i, o, t) - \
+            schedule_slack_neg(i, o, t) = schedule(i, o, t) \\
+            \forall (i, o) \in \textrm{SCHEDULE\_FLOWS}, \\
+            \forall t \in \textrm{TIMESTEPS}.
+
     **The following parts of the objective function are created:**
 
     If :attr:`variable_costs` are set by the user:
-      .. math::
+        .. math::
           \sum_{(i,o)} \sum_t flow(i, o, t) \cdot variable\_costs(i, o, t)
 
     The expression can be accessed by :attr:`om.Flow.variable_costs` and
     their value after optimization by :meth:`om.Flow.variable_costs()` .
 
+    If :attr:`schedule`, :attr:`schedule_cost_pos` and
+    :attr:`schedule_cost_neg` are set by the user:
+        .. math:: \sum_{(i,o)} \sum_t schedule_cost_pos(i, o, t) \cdot \
+            schedule_slack_pos(i, o, t)  + schedule_cost_neg(i, o, t) \cdot \
+            schedule_slack_neg(i, o, t)
     """
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -133,6 +157,13 @@ class Flow(SimpleBlock):
         self.INTEGER_FLOWS = Set(
             initialize=[(g[0], g[1]) for g in group
                         if g[2].integer])
+
+        self.SCHEDULE_FLOWS = Set(initialize=[
+            (g[0], g[1]) for g in group if (
+                g[2].schedule[0] is not None or
+                any([g[2].schedule[i] is not None for i in range(
+                    0, len(g[2].schedule))]))])
+
         # ######################### Variables  ################################
 
         self.positive_gradient = Var(self.POSITIVE_GRADIENT_FLOWS,
@@ -143,6 +174,13 @@ class Flow(SimpleBlock):
 
         self.integer_flow = Var(self.INTEGER_FLOWS,
                                 m.TIMESTEPS, within=NonNegativeIntegers)
+
+        self.schedule_slack_pos = Var(self.SCHEDULE_FLOWS,
+                                      m.TIMESTEPS, within=NonNegativeReals)
+
+        self.schedule_slack_neg = Var(self.SCHEDULE_FLOWS,
+                                      m.TIMESTEPS, within=NonNegativeReals)
+
         # set upper bound of gradient variable
         for i, o, f in group:
             if m.flows[i, o].positive_gradient['ub'][0] is not None:
@@ -222,6 +260,21 @@ class Flow(SimpleBlock):
         self.integer_flow_constr = Constraint(self.INTEGER_FLOWS, m.TIMESTEPS,
                                               rule=_integer_flow_rule)
 
+        def _schedule_rule(model):
+            for inp, out in self.SCHEDULE_FLOWS:
+                for ts in m.TIMESTEPS:
+                    if m.flows[inp, out].schedule[ts] is not None:
+                        lhs = (m.flow[inp, out, ts] +
+                               self.schedule_slack_pos[inp, out, ts] -
+                               self.schedule_slack_neg[inp, out, ts])
+                        rhs = m.flows[inp, out].schedule[ts]
+                        self.schedule_constr.add((inp, out, ts),
+                                                 lhs == rhs)
+        self.schedule_constr = Constraint(
+            self.SCHEDULE_FLOWS, m.TIMESTEPS, noruleinit=True)
+        self.schedule_build = BuildAction(
+            rule=_schedule_rule)
+
     def _objective_expression(self):
         r""" Objective expression for all standard flows with fixed costs
         and variable costs.
@@ -230,6 +283,7 @@ class Flow(SimpleBlock):
 
         variable_costs = 0
         gradient_costs = 0
+        schedule_costs = 0
 
         for i, o in m.FLOWS:
             if m.flows[i, o].variable_costs[0] is not None:
@@ -250,7 +304,16 @@ class Flow(SimpleBlock):
                                        m.flows[i, o].negative_gradient[
                                            'costs'])
 
-        return variable_costs + gradient_costs
+            schedule = m.flows[i, o].schedule
+            if (len(schedule) > 1 or
+                (len(schedule) == 0 and
+                 schedule[0] is not None)):
+                for t in m.TIMESTEPS:
+                    schedule_costs += (self.schedule_slack_pos[i, o, t] *
+                                       m.flows[i, o].schedule_cost_pos[t])
+                    schedule_costs += (self.schedule_slack_neg[i, o, t] *
+                                       m.flows[i, o].schedule_cost_neg[t])
+        return variable_costs + gradient_costs + schedule_costs
 
 
 class InvestmentFlow(SimpleBlock):

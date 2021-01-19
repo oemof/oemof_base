@@ -137,6 +137,9 @@ class TestParameterResult:
             'flow': None,
             'values': None,
             'label': str(b_el2.outputs[demand].label),
+            'schedule_cost_pos': None,
+            'schedule_cost_neg': None,
+            'schedule': None,
         }
         assert_series_equal(
             param_results[(b_el2, demand)]['scalars'].sort_index(),

@@ -124,6 +124,24 @@ class Flow(on.Edge):
         :class:`Flow <oemof.solph.blocks.Flow>`.
         Note: at the moment this does not work if the investment attribute is
         set .
+    schedule : numeric (sequence or scalar)
+        Schedule for the flow. Flow has to follow the schedule, otherwise a
+        penalty term will be activated. If array-like, values can be None
+        for flexible, non-fixed flow during the certain timestep.  Used in
+        combination with :attr:`schedule_cost_pos` and
+        :attr:`schedule_cost_neg`.
+    schedule_cost_pos : numeric (sequence or scalar)
+        A penalty parameter of the penalty term which describes the costs
+        associated with one unit of deficit of the flow compared to the
+        schedule. If this is set the costs will be added to the objective
+        expression of the optimization problem. Used in combination with the
+        :attr:`schedule` and :attr:`schedule_cost_neg`
+    schedule_cost_neg: numeric (sequence or scalar)
+        A penalty parameter of the penalty term which describes the costs
+        associated with one unit of the exceeded flow when flow exceeds the
+        schedule. If this is set the costs will be added to the objective
+        expression of the optimization problem. Used in combination with
+        the :attr:`schedule` and :attr:`schedule_cost_pos`
 
     Notes
     -----
@@ -163,11 +181,13 @@ class Flow(on.Edge):
 
         scalars = ['nominal_value', 'summed_max', 'summed_min',
                    'investment', 'nonconvex', 'integer']
-        sequences = ['fix', 'variable_costs', 'min', 'max']
+        sequences = ['fix', 'variable_costs', 'min', 'max',
+                     'schedule', 'schedule_cost_neg', 'schedule_cost_pos']
         dictionaries = ['positive_gradient', 'negative_gradient']
         defaults = {'variable_costs': 0,
                     'positive_gradient': {'ub': None, 'costs': 0},
-                    'negative_gradient': {'ub': None, 'costs': 0}}
+                    'negative_gradient': {'ub': None, 'costs': 0}
+                    }
         keys = [k for k in kwargs if k != 'label']
 
         if 'fixed_costs' in keys:
@@ -219,6 +239,13 @@ class Flow(on.Edge):
         if self.investment and self.nonconvex:
             raise ValueError("Investment flows cannot be combined with " +
                              "nonconvex flows!")
+        if (len(self.schedule) != 0 and
+            (self.schedule_cost_neg[0] is None or
+             self.schedule_cost_pos[0] is None)):
+            raise ValueError("The schedule attribute and the associated costs "
+                             "need to be used in combination. \n Please set "
+                             "the `schedule_cost_neg` and `schedule_cost_pos` "
+                             "attributes of the flow.")
 
 
 class Bus(on.Bus):
