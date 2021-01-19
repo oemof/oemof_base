@@ -22,8 +22,6 @@ from collections import MutableMapping
 
 import pandas as pd
 
-from oemof.solph.plumbing import sequence
-
 
 def get_basic_path():
     """Returns the basic oemof path and creates it if necessary.
@@ -94,7 +92,7 @@ def calculate_timeincrement(timeindex, fill_value=None):
         timeincrement_sec = timeincrement.map(dt.timedelta.total_seconds)
         timeincrement_hourly = list(timeincrement_sec.map(
                                     lambda x: x/3600))
-        timeincrement = sequence(timeincrement_hourly)
+        timeincrement = timeincrement_hourly
         return timeincrement
     else:
         raise AttributeError(
