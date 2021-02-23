@@ -312,12 +312,7 @@ class GenericStorageBlock(SimpleBlock):
             &- \frac{\dot{E}_o(t)}{\eta_o(t)} \cdot \tau(t)
             + \dot{E}_i(t) \cdot \eta_i(t) \cdot \tau(t)
 
-    Connect the invest variables of the input and the output flow.
-        .. math::
-          InvestmentFlow.invest(source(n), n) + existing = \\
-          (InvestmentFlow.invest(n, target(n)) + existing) * \\
-          invest\_relation\_input\_output(n) \\
-          \forall n \in \textrm{INVEST\_REL\_IN\_OUT}
+
 
 
 
@@ -666,13 +661,13 @@ class GenericInvestmentStorageBlock(SimpleBlock):
             Rule for upper bound constraint for the storage content:
 
         .. math::
-            E(t) \leq E_{invest} \cdot c_{max}(t)
+            E(t) \leq (E_{invest} +  E_{exist}) \cdot c_{max}(t)
 
         * :attr:`min_storage_level`
 
             Rule for lower bound constraint for the storage content:
 
-        .. math:: E(t) \geq E_{invest} \cdot c_{min}(t)
+        .. math:: E(t) \geq (E_{invest} +  E_{exist}) \cdot c_{min}(t)
 
 
     **Objective function**
