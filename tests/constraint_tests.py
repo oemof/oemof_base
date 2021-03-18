@@ -624,7 +624,8 @@ class TestsConstraint:
             label="source_0",
             outputs={
                 bus: solph.Flow(
-                    investment=solph.Investment(ep_costs=50, space=4)
+                    investment=solph.Investment(ep_costs=50,
+                                                other_needs={"space": 4})
                 )
             },
         )
@@ -633,7 +634,8 @@ class TestsConstraint:
             label="source_1",
             outputs={
                 bus: solph.Flow(
-                    investment=solph.Investment(ep_costs=100, space=1)
+                    investment=solph.Investment(ep_costs=100,
+                                                other_needs={"space": 1})
                 )
             },
         )
@@ -647,9 +649,7 @@ class TestsConstraint:
 
         om = self.get_om()
 
-        om = solph.constraints.additional_investment_flow_limit(
-            om, "space", limit=20
-        )
+        om = solph.constraints.investment_limit(om, "space", limit=20)
 
         self.compare_lp_files("generic_invest_limit.lp", my_om=om)
 

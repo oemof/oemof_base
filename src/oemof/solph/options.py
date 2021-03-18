@@ -27,6 +27,7 @@ class Investment:
         `minimum` defines the threshold for the invested capacity.
     ep_costs : float, :math:`c_{invest,var}`
         Equivalent periodical costs for the investment per flow capacity.
+    other_needs : dict
     existing : float, :math:`P_{exist}` or :math:`E_{exist}`
         Existing / installed capacity. The invested capacity is added on top
         of this value. Not applicable if `nonconvex` is set to `True`.
@@ -54,6 +55,7 @@ class Investment:
         existing=0,
         nonconvex=False,
         offset=0,
+        other_needs=None,
         **kwargs,
     ):
 
@@ -63,6 +65,10 @@ class Investment:
         self.existing = existing
         self.nonconvex = nonconvex
         self.offset = offset
+        if other_needs is not None:
+            self.other_needs = other_needs
+        else:
+            self.other_needs = {}
 
         for attribute in kwargs.keys():
             value = kwargs.get(attribute)

@@ -116,7 +116,8 @@ def test_optimise_storage_size(
         invest_relation_output_capacity=1 / 6,
         inflow_conversion_factor=1,
         outflow_conversion_factor=0.8,
-        investment=solph.Investment(ep_costs=epc, existing=6851),
+        investment=solph.Investment(ep_costs=epc,
+                                    existing=6851),
     )
 
     # Solve model

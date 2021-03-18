@@ -14,36 +14,7 @@ SPDX-License-Identifier: MIT
 from pyomo import environ as po
 
 
-def investment_limit(model, limit=None):
-    r"""Set an absolute limit for the total investment costs of an investment
-    optimization problem:
-
-    .. math:: \sum_{investment\_costs} \leq limit
-
-    Parameters
-    ----------
-    model : oemof.solph.Model
-        Model to which the constraint is added
-    limit : float
-        Absolute limit of the investment (i.e. RHS of constraint)
-    """
-
-    def investment_rule(m):
-        expr = 0
-
-        if hasattr(m, "InvestmentFlow"):
-            expr += m.InvestmentFlow.investment_costs
-
-        if hasattr(m, "GenericInvestmentStorageBlock"):
-            expr += m.GenericInvestmentStorageBlock.investment_costs
-        return expr <= limit
-
-    model.investment_limit = po.Constraint(rule=investment_rule)
-
-    return model
-
-
-def additional_investment_flow_limit(model, keyword, limit=None):
+def investment_limit(model, keyword=None, limit=None):
     r"""
     Global limit for investment flows weighted by an attribute keyword.
 
@@ -59,7 +30,7 @@ def additional_investment_flow_limit(model, keyword, limit=None):
     ----------
     model : oemof.solph.Model
         Model to which constraints are added.
-    keyword : attribute to consider
+    keyword : need to consider (None: ep_costs)
         All flows with Investment attribute containing the keyword will be
         used.
     limit : numeric
@@ -67,23 +38,24 @@ def additional_investment_flow_limit(model, keyword, limit=None):
 
     **Constraint**
 
-    .. math:: \sum_{i \in IF}  P_i \cdot w_i \leq limit
+    .. math:: \sum_{i}  P_i \cdot w_i \leq limit
 
-    With `IF` being the set of InvestmentFlows considered for the integral
-    limit.
+    Where :math:`i` being all investments (for keyword=None)
+    or being the set of InvestmentFlows considered.
 
     The symbols used are defined as follows
     (with Variables (V) and Parameters (P)):
 
-    +---------------+---------------------------------------+------+--------------------------------------------------------------+
-    | symbol        | attribute                             | type | explanation                                                  |
-    +===============+=======================================+======+==============================================================+
-    | :math:`P_{i}` | :py:obj:`InvestmentFlow.invest[i, o]` | V    | installed capacity of investment flow                        |
-    +---------------+---------------------------------------+------+--------------------------------------------------------------+
-    | :math:`w_i`   | :py:obj:`keyword`                     | P    | weight given to investment flow named according to `keyword` |
-    +---------------+---------------------------------------+------+--------------------------------------------------------------+
-    | :math:`limit` | :py:obj:`limit`                       | P    | global limit given by keyword `limit`                        |
-    +---------------+---------------------------------------+------+--------------------------------------------------------------+
+    +---------------+---------------------------------------+------+--------------------------------------------------+
+    | symbol        | attribute                             | type | explanation                                      |
+    +===============+=======================================+======+==================================================+
+    | :math:`P_{i}` | :py:obj:`InvestmentFlow.invest[i, o]` | V    | installed capacity of investment flow            |
+    +---------------+---------------------------------------+------+--------------------------------------------------+
+    | :math:`w_i`   | :py:obj:`keyword`                     | P    | weight given to investment flow named according  |
+    |               |                                       |      | to `keyword`, :math:`w_i = 1` if keyword is None |
+    +---------------+---------------------------------------+------+--------------------------------------------------+
+    | :math:`limit` | :py:obj:`limit`                       | P    | global limit given by keyword `limit`            |
+    +---------------+---------------------------------------+------+--------------------------------------------------+
 
     Note
     ----
@@ -105,36 +77,49 @@ def additional_investment_flow_limit(model, keyword, limit=None):
     ...     investment=solph.Investment(ep_costs=100, space=1))})
     >>> es.add(bus, sink, src1, src2)
     >>> model = solph.Model(es)
-    >>> model = solph.constraints.additional_investment_flow_limit(
-    ...     model, "space", limit=1500)
+    >>> model = solph.constraints.investment_limit(model, "space", limit=1500)
     >>> a = model.solve(solver="cbc")
     >>> int(round(model.invest_limit_space()))
     1500
     """  # noqa: E501
-    invest_flows = {}
+    if keyword is None:
+        def investment_rule(m):
+            expr = 0
 
-    for (i, o) in model.flows:
-        if hasattr(model.flows[i, o].investment, keyword):
-            invest_flows[(i, o)] = model.flows[i, o].investment
+            if hasattr(m, "InvestmentFlow"):
+                expr += m.InvestmentFlow.investment_costs
 
-    limit_name = "invest_limit_" + keyword
+            if hasattr(m, "GenericInvestmentStorageBlock"):
+                expr += m.GenericInvestmentStorageBlock.investment_costs
+            return expr <= limit
 
-    setattr(
-        model,
-        limit_name,
-        po.Expression(
-            expr=sum(
-                model.InvestmentFlow.invest[inflow, outflow]
-                * getattr(invest_flows[inflow, outflow], keyword)
-                for (inflow, outflow) in invest_flows
-            )
-        ),
-    )
+        model.investment_limit = po.Constraint(rule=investment_rule)
 
-    setattr(
-        model,
-        limit_name + "_constraint",
-        po.Constraint(expr=(getattr(model, limit_name) <= limit)),
-    )
+    else:
+        invest_flows = {}
+
+        for (i, o) in model.flows:
+            if keyword in model.flows[i, o].investment.other_needs:
+                invest_flows[(i, o)] = model.flows[i, o].investment
+
+        limit_name = "invest_limit_" + keyword
+
+        setattr(
+            model,
+            limit_name,
+            po.Expression(
+                expr=sum(
+                    model.InvestmentFlow.invest[inflow, outflow]
+                    * invest_flows[inflow, outflow].other_needs[keyword]
+                    for (inflow, outflow) in invest_flows
+                )
+            ),
+        )
+
+        setattr(
+            model,
+            limit_name + "_constraint",
+            po.Constraint(expr=(getattr(model, limit_name) <= limit)),
+        )
 
     return model
