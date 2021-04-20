@@ -64,9 +64,8 @@ class GenericStorage(network.Node):
     initial_storage_level : numeric, :math:`c(-1)`
         The relative storage content in the timestep before the first
         time step of optimization (between 0 and 1).
-    balanced : boolean
-        Couple storage level of first and last time step.
-        (Total inflow and total outflow are balanced.)
+    period_length : numeric (integer)
+        Equate storage level between every period_length time steps.
     loss_rate : numeric (iterable or scalar)
         The relative loss of the storage content per time unit.
     fixed_losses_relative : numeric (iterable or scalar), :math:`\gamma(t)`
@@ -141,7 +140,7 @@ class GenericStorage(network.Node):
         super().__init__(*args, **kwargs)
         self.nominal_storage_capacity = kwargs.get("nominal_storage_capacity")
         self.initial_storage_level = kwargs.get("initial_storage_level")
-        self.balanced = kwargs.get("balanced", True)
+        self.period_length = kwargs.get("period_length", -1)
         self.loss_rate = solph_sequence(kwargs.get("loss_rate", 0))
         self.fixed_losses_relative = solph_sequence(
             kwargs.get("fixed_losses_relative", 0)
@@ -168,6 +167,20 @@ class GenericStorage(network.Node):
             "invest_relation_output_capacity"
         )
         self._invest_group = isinstance(self.investment, Investment)
+
+        if "balanced" in kwargs:
+            if "period_length" in kwargs:
+                message = (
+                    "The attribute 'period_length' replaces"
+                    " the attribute 'balanced'. You can only set"
+                    " one of these."
+                )
+                raise AttributeError(message)
+            else:
+                if kwargs["balanced"]:
+                    self.period_length = -1
+                else:
+                    self.period_length = 0
 
         # Check number of flows.
         self._check_number_of_flows()
@@ -277,8 +290,8 @@ class GenericStorageBlock(SimpleBlock):
          attr:`investment` of type :class:`.Investment`.
 
     STORAGES_BALANCED
-        A set of  all :class:`.Storage` objects, with 'balanced' attribute set
-        to True.
+        A set of  all :class:`.Storage` objects, with 'period_length'
+        attribute set to -1.
 
     STORAGES_WITH_INVEST_FLOW_REL
         A set with all :class:`.Storage` objects with two investment flows
@@ -295,7 +308,8 @@ class GenericStorageBlock(SimpleBlock):
 
     **The following constraints are created:**
 
-    Set storage_content of last time step to one at t=0 if :attr:`balanced == True`
+    Set storage_content of last time step to one at t=0 if
+    :attr:`period_length == -1`
         .. math::
             E(t_{last}) = &E(-1)
 
@@ -386,8 +400,16 @@ class GenericStorageBlock(SimpleBlock):
 
         self.STORAGES = Set(initialize=[n for n in group])
 
+        for n in group:
+            if n.period_length == 0:
+                n.period_length = m.TIMESTEPS[-1] + 2
+            elif n.period_length < 0:
+                n.period_length += m.TIMESTEPS[-1] + 2
+
         self.STORAGES_BALANCED = Set(
-            initialize=[n for n in group if n.balanced is True]
+            initialize=[
+                n for n in group if n.period_length <= m.TIMESTEPS[-1] + 1
+            ]
         )
 
         self.STORAGES_WITH_INVEST_FLOW_REL = Set(
@@ -403,14 +425,22 @@ class GenericStorageBlock(SimpleBlock):
             Rule definition for bounds of storage_content variable of
             storage n in timestep t.
             """
-            bounds = (
-                n.nominal_storage_capacity * n.min_storage_level[t],
-                n.nominal_storage_capacity * n.max_storage_level[t],
-            )
+            if t >= 0:
+                bounds = (
+                    n.nominal_storage_capacity * n.min_storage_level[t],
+                    n.nominal_storage_capacity * n.max_storage_level[t],
+                )
+            else:
+                bounds = (
+                    0,
+                    n.nominal_storage_capacity,
+                )
             return bounds
 
         self.storage_content = Var(
-            self.STORAGES, m.TIMESTEPS, bounds=_storage_content_bound_rule
+            self.STORAGES,
+            m.TIMESTEPS | {-1},
+            bounds=_storage_content_bound_rule,
         )
 
         def _storage_init_content_bound_rule(block, n):
@@ -432,48 +462,20 @@ class GenericStorageBlock(SimpleBlock):
 
         #  ************* Constraints ***************************
 
-        reduced_timesteps = [x for x in m.TIMESTEPS if x > 0]
-
-        # storage balance constraint (first time step)
-        def _storage_balance_first_rule(block, n):
-            """
-            Rule definition for the storage balance of every storage n for
-            the first timestep.
-            """
-            expr = 0
-            expr += block.storage_content[n, 0]
-            expr += (
-                -block.init_content[n]
-                * (1 - n.loss_rate[0]) ** m.timeincrement[0]
-            )
-            expr += (
-                n.fixed_losses_relative[0]
-                * n.nominal_storage_capacity
-                * m.timeincrement[0]
-            )
-            expr += n.fixed_losses_absolute[0] * m.timeincrement[0]
-            expr += (
-                -m.flow[i[n], n, 0] * n.inflow_conversion_factor[0]
-            ) * m.timeincrement[0]
-            expr += (
-                m.flow[n, o[n], 0] / n.outflow_conversion_factor[0]
-            ) * m.timeincrement[0]
-            return expr == 0
-
-        self.balance_first = Constraint(
-            self.STORAGES, rule=_storage_balance_first_rule
-        )
-
-        # storage balance constraint (every time step but the first)
         def _storage_balance_rule(block, n, t):
             """
             Rule definition for the storage balance of every storage n and
             every timestep but the first (t > 0).
             """
+            if t == 0 or t % n.period_length != 0:
+                previous_time_step = t - 1
+            else:
+                previous_time_step = t - 1 + n.period_length
+
             expr = 0
             expr += block.storage_content[n, t]
             expr += (
-                -block.storage_content[n, t - 1]
+                -block.storage_content[n, previous_time_step]
                 * (1 - n.loss_rate[t]) ** m.timeincrement[t]
             )
             expr += (
@@ -491,21 +493,31 @@ class GenericStorageBlock(SimpleBlock):
             return expr == 0
 
         self.balance = Constraint(
-            self.STORAGES, reduced_timesteps, rule=_storage_balance_rule
+            self.STORAGES, m.TIMESTEPS, rule=_storage_balance_rule
         )
 
-        def _balanced_storage_rule(block, n):
+        def _initial_storage_rule(block, n):
+            """
+            Storage content before first time step.
+            """
+            return block.storage_content[n, -1] == block.init_content[n]
+
+        self.initial_cstr = Constraint(
+            self.STORAGES, rule=_initial_storage_rule
+        )
+
+        def _storage_balance_initial_rule(block, n):
             """
             Storage content of last time step == initial storage content
-            if balanced.
+            if period_length == -1.
             """
             return (
-                block.storage_content[n, m.TIMESTEPS[-1]]
-                == block.init_content[n]
+                block.storage_content[n, -1]
+                == block.storage_content[n, n.period_length - 1]
             )
 
         self.balanced_cstr = Constraint(
-            self.STORAGES_BALANCED, rule=_balanced_storage_rule
+            self.STORAGES_BALANCED, rule=_storage_balance_initial_rule
         )
 
         def _power_coupled(block, n):
@@ -624,7 +636,7 @@ class GenericInvestmentStorageBlock(SimpleBlock):
         .. math::
                E(-1) = (E_{invest} + E_{exist}) \cdot c(-1)
 
-        * :attr:`balanced=True`
+        * :attr:`period_length=-1`
 
             The energy content of storage of the first and the last timestep
             are set equal:
@@ -781,7 +793,7 @@ class GenericInvestmentStorageBlock(SimpleBlock):
         )
 
         self.INVESTSTORAGES_BALANCED = Set(
-            initialize=[n for n in group if n.balanced is True]
+            initialize=[n for n in group if n.period_length == -1]
         )
 
         self.INVESTSTORAGES_NO_INIT_CONTENT = Set(

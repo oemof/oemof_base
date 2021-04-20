@@ -45,18 +45,11 @@ c_e_Bus_balance(bus_2)_:
 +1 flow(storage2_bus_2)
 = 0
 
-c_e_GenericStorageBlock_balance_first(storage1)_:
--1 GenericStorageBlock_init_content(storage1)
+c_e_GenericStorageBlock_balance(storage1_0)_:
 +1 GenericStorageBlock_storage_content(storage1_0)
+-1 GenericStorageBlock_storage_content(storage1__1)
 -1 flow(bus_storage1_0)
 +1 flow(storage1_bus_0)
-= 0
-
-c_e_GenericStorageBlock_balance_first(storage2)_:
--1 GenericStorageBlock_init_content(storage2)
-+1 GenericStorageBlock_storage_content(storage2_0)
--1 flow(bus_storage2_0)
-+1 flow(storage2_bus_0)
 = 0
 
 c_e_GenericStorageBlock_balance(storage1_1)_:
@@ -73,6 +66,13 @@ c_e_GenericStorageBlock_balance(storage1_2)_:
 +1 flow(storage1_bus_2)
 = 0
 
+c_e_GenericStorageBlock_balance(storage2_0)_:
++1 GenericStorageBlock_storage_content(storage2_0)
+-1 GenericStorageBlock_storage_content(storage2__1)
+-1 flow(bus_storage2_0)
++1 flow(storage2_bus_0)
+= 0
+
 c_e_GenericStorageBlock_balance(storage2_1)_:
 -1 GenericStorageBlock_storage_content(storage2_0)
 +1 GenericStorageBlock_storage_content(storage2_1)
@@ -87,14 +87,24 @@ c_e_GenericStorageBlock_balance(storage2_2)_:
 +1 flow(storage2_bus_2)
 = 0
 
-c_e_GenericStorageBlock_balanced_cstr(storage1)_:
+c_e_GenericStorageBlock_initial_cstr(storage1)_:
 -1 GenericStorageBlock_init_content(storage1)
-+1 GenericStorageBlock_storage_content(storage1_2)
++1 GenericStorageBlock_storage_content(storage1__1)
+= 0
+
+c_e_GenericStorageBlock_initial_cstr(storage2)_:
+-1 GenericStorageBlock_init_content(storage2)
++1 GenericStorageBlock_storage_content(storage2__1)
+= 0
+
+c_e_GenericStorageBlock_balanced_cstr(storage1)_:
+-1 GenericStorageBlock_storage_content(storage1_2)
++1 GenericStorageBlock_storage_content(storage1__1)
 = 0
 
 c_e_GenericStorageBlock_balanced_cstr(storage2)_:
--1 GenericStorageBlock_init_content(storage2)
-+1 GenericStorageBlock_storage_content(storage2_2)
+-1 GenericStorageBlock_storage_content(storage2_2)
++1 GenericStorageBlock_storage_content(storage2__1)
 = 0
 
 c_e_ONE_VAR_CONSTANT:
@@ -116,9 +126,11 @@ bounds
    0 <= limit_storage(0) <= 7
    0 <= limit_storage(1) <= 7
    0 <= limit_storage(2) <= 7
+   0 <= GenericStorageBlock_storage_content(storage1__1) <= 5
    0 <= GenericStorageBlock_storage_content(storage1_0) <= 5
    0 <= GenericStorageBlock_storage_content(storage1_1) <= 5
    0 <= GenericStorageBlock_storage_content(storage1_2) <= 5
+   0 <= GenericStorageBlock_storage_content(storage2__1) <= 5
    0 <= GenericStorageBlock_storage_content(storage2_0) <= 5
    0 <= GenericStorageBlock_storage_content(storage2_1) <= 5
    0 <= GenericStorageBlock_storage_content(storage2_2) <= 5

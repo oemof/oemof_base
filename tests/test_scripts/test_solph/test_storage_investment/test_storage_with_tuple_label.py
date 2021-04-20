@@ -194,8 +194,8 @@ def test_tuples_as_labels_example(
     # Problem results
     eq_(int(meta["problem"]["Lower bound"]), 37819254)
     eq_(int(meta["problem"]["Upper bound"]), 37819254)
-    eq_(meta["problem"]["Number of variables"], 281)
-    eq_(meta["problem"]["Number of constraints"], 163)
+    eq_(meta["problem"]["Number of variables"], 282)
+    eq_(meta["problem"]["Number of constraints"], 164)
     eq_(meta["problem"]["Number of nonzeros"], 116)
     eq_(meta["problem"]["Number of objectives"], 1)
     eq_(str(meta["problem"]["Sense"]), "minimize")

@@ -162,7 +162,6 @@ class TestParameterResult:
             param_results[("storage", "None")]["scalars"],
             pandas.Series(
                 {
-                    "balanced": True,
                     "initial_storage_level": 0,
                     "invest_relation_input_capacity": 1 / 6,
                     "invest_relation_output_capacity": 1 / 6,
@@ -173,6 +172,7 @@ class TestParameterResult:
                     "investment_nonconvex": False,
                     "investment_offset": 0,
                     "label": "storage",
+                    "period_length": -1,
                     "fixed_losses_absolute": 0,
                     "fixed_losses_relative": 0,
                     "inflow_conversion_factor": 1,
@@ -198,7 +198,6 @@ class TestParameterResult:
             param_results[("storage", None)]["scalars"],
             pandas.Series(
                 {
-                    "balanced": True,
                     "initial_storage_level": 0,
                     "invest_relation_input_capacity": 1 / 6,
                     "invest_relation_output_capacity": 1 / 6,
@@ -209,6 +208,7 @@ class TestParameterResult:
                     "investment_nonconvex": False,
                     "investment_offset": 0,
                     "label": "storage",
+                    "period_length": -1,
                     "fixed_losses_absolute": 0,
                     "fixed_losses_relative": 0,
                     "inflow_conversion_factor": 1,

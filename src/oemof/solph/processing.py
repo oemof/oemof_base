@@ -103,6 +103,10 @@ def create_dataframe(om):
     df["timestep"] = df["oemof_tuple"].map(get_timestep)
     df["oemof_tuple"] = df["oemof_tuple"].map(remove_timestep)
 
+    # drop time steps before observation period
+    # (i.e. used for initial storage level)
+    df = df[df.timestep >= 0]
+
     # order the data by oemof tuple and timestep
     df = df.sort_values(["oemof_tuple", "timestep"], ascending=[True, True])
 

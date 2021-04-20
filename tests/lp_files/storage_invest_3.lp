@@ -1,6 +1,6 @@
 \* Source Pyomo model name=Model *\
 
-min 
+min
 objective:
 +99 InvestmentFlow_invest(electricityBus_storage3)
 +9 InvestmentFlow_invest(storage3_electricityBus)
@@ -52,9 +52,9 @@ c_u_InvestmentFlow_max(storage3_electricityBus_2)_:
 +1 flow(storage3_electricityBus_2)
 <= 0
 
-c_e_GenericStorageBlock_balance_first(storage3)_:
--1 GenericStorageBlock_init_content(storage3)
+c_e_GenericStorageBlock_balance(storage3_0)_:
 +1 GenericStorageBlock_storage_content(storage3_0)
+-1 GenericStorageBlock_storage_content(storage3__1)
 -1 flow(electricityBus_storage3_0)
 +1 flow(storage3_electricityBus_0)
 = 0
@@ -73,12 +73,17 @@ c_e_GenericStorageBlock_balance(storage3_2)_:
 +1 flow(storage3_electricityBus_2)
 = 0
 
-c_e_GenericStorageBlock_balanced_cstr(storage3)_:
+c_e_GenericStorageBlock_initial_cstr(storage3)_:
 -1 GenericStorageBlock_init_content(storage3)
-+1 GenericStorageBlock_storage_content(storage3_2)
++1 GenericStorageBlock_storage_content(storage3__1)
 = 0
 
-c_e_ONE_VAR_CONSTANT: 
+c_e_GenericStorageBlock_balanced_cstr(storage3)_:
+-1 GenericStorageBlock_storage_content(storage3_2)
++1 GenericStorageBlock_storage_content(storage3__1)
+= 0
+
+c_e_ONE_VAR_CONSTANT:
 ONE_VAR_CONSTANT = 1.0
 
 bounds
@@ -90,6 +95,7 @@ bounds
    0 <= flow(storage3_electricityBus_2) <= +inf
    0 <= InvestmentFlow_invest(electricityBus_storage3) <= +inf
    0 <= InvestmentFlow_invest(storage3_electricityBus) <= +inf
+   0 <= GenericStorageBlock_storage_content(storage3__1) <= 5000
    0 <= GenericStorageBlock_storage_content(storage3_0) <= 5000
    0 <= GenericStorageBlock_storage_content(storage3_1) <= 5000
    0 <= GenericStorageBlock_storage_content(storage3_2) <= 5000
