@@ -87,9 +87,24 @@ nonconvex_flow_grouping = groupings.FlowsWithNodes(
 )
 
 
+def _multiobjective_grouping(stf):
+    if hasattr(stf[2], "multiobjective"):
+        if stf[2].multiobjective is not None:
+            return True
+    else:
+        return False
+
+
+multiobjective_flow_grouping = groupings.FlowsWithNodes(
+    constant_key=blocks.MultiObjectiveFlow,
+    filter=_multiobjective_grouping
+)
+
+
 GROUPINGS = [
     constraint_grouping,
     investment_flow_grouping,
     standard_flow_grouping,
     nonconvex_flow_grouping,
+    multiobjective_flow_grouping,
 ]

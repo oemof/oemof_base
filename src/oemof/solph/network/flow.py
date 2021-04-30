@@ -92,17 +92,23 @@ class Flow(on.Edge):
         :class:`Flow <oemof.solph.blocks.Flow>`.
         Note: at the moment this does not work if the investment attribute is
         set .
+    multiobjective: :class:`oemof.solph.options.MultiObjective`
+        Object indicating if multiple objectives should be added for this
+        flow. To be used together with
+        :class:`oemof.solph.models.MultiObjectiveModel` to generate
+        multi objective program.
 
     Notes
     -----
     The following sets, variables, constraints and objective parts are created
-     * :py:class:`~oemof.solph.blocks.flow.Flow`
-     * :py:class:`~oemof.solph.blocks.investment_flow.InvestmentFlow`
-        (additionally if Investment object is present)
-     * :py:class:`~oemof.solph.blocks.non_convex_flow.NonConvexFlow`
-        (If nonconvex  object is present, CAUTION: replaces
-        :py:class:`~oemof.solph.blocks.flow.Flow`
-        class and a MILP will be build)
+     * :py:class:`~oemof.solph.blocks.Flow`
+     * :py:class:`~oemof.solph.blocks.InvestmentFlow` (additionally if
+       Investment object is present)
+     * :py:class:`~oemof.solph.blocks.MultiObjectiveFlow` (additionally if
+       MultiObjective object is present)
+     * :py:class:`~oemof.solph.blocks.NonConvexFlow` (If
+        nonconvex  object is present, CAUTION: replaces
+        :py:class:`~oemof.solph.blocks.Flow` class and a MILP will be build)
 
     Examples
     --------
@@ -137,6 +143,7 @@ class Flow(on.Edge):
             "investment",
             "nonconvex",
             "integer",
+            "multiobjective",
         ]
         sequences = ["fix", "variable_costs", "min", "max"]
         dictionaries = ["positive_gradient", "negative_gradient"]
@@ -211,3 +218,17 @@ class Flow(on.Edge):
                 "Investment flows cannot be combined with "
                 + "nonconvex flows!"
             )
+
+        # Checking for attribute combinations with possibly unknown effects
+        if self.multiobjective and sum(self.variable_costs) != 0:
+            msg = (
+                "Multiobjective flows should not be combined with standard"
+                + " variable costs! Costs are automatically attributed to"
+                + " standard objective.")
+            warn(msg, UserWarning)
+        if self.multiobjective and self.investment:
+            msg = (
+                "Multiobjective flows should not be combined with investment"
+                + " flows! Investment is automatically attributed to standard"
+                + " objective.")
+            warn(msg, UserWarning)
