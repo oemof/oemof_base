@@ -8,6 +8,7 @@ SPDX-FileCopyrightText: Cord Kaldemeyer
 SPDX-FileCopyrightText: Stephan Günther
 SPDX-FileCopyrightText: Patrik Schönfeldt
 SPDX-FileCopyrightText: jmloenneberga
+SPDX-FileCopyrightText: Johannes Kochems (jokochems)
 
 SPDX-License-Identifier: MIT
 
@@ -100,6 +101,124 @@ class Investment:
                 " ignored."
             )
             raise AttributeError(e3)
+
+
+class MultiPeriodInvestment:
+    """
+    Parameters
+    ----------
+    maximum : sequence of float, :math:`P_{invest,max}(p)`
+        or :math:`E_{invest,max}(p)`
+        Maximum of the additional invested capacity that can be installed in
+        the current period
+    minimum : sequence of float, :math:`P_{invest,min}(p)`
+        or :math:`E_{invest,min}(p)`
+        Minimum of the additional invested capacity that has at least to be
+        installed in the current period
+    ep_costs : sequence of float, :math:`c_{invest}(p)`
+        Equivalent periodical costs for the investment per flow capacity.
+        Values may differ on a periodical basis and have to be given as
+        nominal investment expenditures. An annuity is calculated by the model
+        itself.
+    existing : float, :math:`P_{exist}` or :math:`E_{exist}`
+        Existing / installed capacity. The invested capacity is added on top
+        of this value. Not applicable if `nonconvex` is set to `True`. Existing
+        capacity will be decommissioned when its lifetime is reached, in turn
+        accounting for a start age.
+    nonconvex : bool
+        If `True`, a binary variable for the status of the investment is
+        created. This enables additional fix investment costs (*offset*)
+        independent of the invested flow capacity. Therefore, use the `offset`
+        parameter.
+    offset : float, :math:`c_{invest,fix}(p)`
+        Additional fix investment costs. Only applicable if `nonconvex` is set
+        to `True`. Values may vary on a periodical basis.
+    overall_maximum : float, :math:`P_{overall_max}`
+        Overall amount of capacity that may not be exceeded by the total
+        installed capacity in every period. Note: Decommissionings due to unit
+        age are taken into account.
+    overall_minimum : float, :math:`P_{overall_min}`
+        An overall limit for the capacity to be installed in the last period
+        of the optimization timeframe
+    lifetime : int, :math:`lifetime`
+        The lifetime of a certain technology given in the number of periods
+        from investment to decommissioning
+    age : int, :math:`age`
+        The start age of a technology for period 0. To be used in combination
+        with :attr:`existing` > 0.
+    interest_rate : float
+        The interest rate for calculating an annuity (can either be set from
+        an microeconomic point of view, where it equals the interest an
+        investor wishes to earn, or from a social planner point of view,
+        where it equals the inflation rate used for discounting
+        nominal payments)
+    fixed_costs : sequence of float, :math:`c_{fixed}(p)`
+        Fixed costs for the investment per flow capacity.
+        Values may differ on a periodical basis and have to be given as
+        nominal values. Values are discounted by the model itself.
+
+
+    For the variables, constraints and parts of the objective function, which
+    are created, see :class:`oemof.solph.blocks.InvestmentFlow` and
+    :class:`oemof.solph.components.GenericInvestmentStorageBlock`.
+
+    """
+    def __init__(self, maximum=float('+inf'), minimum=0, ep_costs=0,
+                 existing=0, nonconvex=False, offset=0,
+                 overall_maximum=None, overall_minimum=None,
+                 lifetime=0, age=0, interest_rate=0, fixed_costs=None,
+                 **kwargs):
+
+        self.maximum = sequence(maximum)
+        self.minimum = sequence(minimum)
+        self.ep_costs = sequence(ep_costs)
+        self.existing = existing
+        self.nonconvex = nonconvex
+        self.offset = sequence(offset)
+        self.overall_maximum = overall_maximum
+        self.overall_minimum = overall_minimum
+        self.lifetime = lifetime
+        self.age = age
+        self.interest_rate = interest_rate
+        self.fixed_costs = sequence(fixed_costs)
+
+        for attribute in kwargs.keys():
+            value = kwargs.get(attribute)
+            setattr(self, attribute, value)
+
+        self._check_invest_attributes()
+        self._check_invest_attributes_maximum()
+        self._check_invest_attributes_offset()
+        self._check_age_and_lifetime()
+
+    def _check_invest_attributes(self):
+        if (self.existing != 0) and (self.nonconvex is True):
+            e1 = ("Values for 'offset' and 'existing' are given in"
+                  " investment attributes. \n These two options cannot be "
+                  "considered at the same time.")
+            raise AttributeError(e1)
+
+    def _check_invest_attributes_maximum(self):
+        if (self.maximum == float('+inf')) and (self.nonconvex is True):
+            e2 = ("Please provide an maximum investment value in case of"
+                  " nonconvex investment (nonconvex=True), which is in the"
+                  " expected magnitude."
+                  " \nVery high maximum values (> 10e8) as maximum investment"
+                  " limit might lead to numeric issues, so that no investment"
+                  " is done, although it is the optimal solution!")
+            raise AttributeError(e2)
+
+    def _check_invest_attributes_offset(self):
+        if (self.offset[0] != 0) and (self.nonconvex is False):
+            e3 = ("If `nonconvex` is `False`, the `offset` parameter will be"
+                  " ignored.")
+            raise AttributeError(e3)
+
+    def _check_age_and_lifetime(self):
+        if self.age >= self.lifetime:
+            e4 = ("A unit's age must be smaller than its "
+                  "expected lifetime.")
+            raise AttributeError(e4)
 
 
 class NonConvex:

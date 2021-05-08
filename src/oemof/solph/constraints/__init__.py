@@ -10,4 +10,7 @@ from .integral_limit import emission_limit  # noqa: F401
 from .integral_limit import generic_integral_limit  # noqa: F401
 from .investment_limit import additional_investment_flow_limit  # noqa: F401
 from .investment_limit import investment_limit  # noqa: F401
+from .multiperiodinvestment_limit import (  # noqa: F401
+    multiperiodinvestment_limit
+)
 from .shared_limit import shared_limit  # noqa: F401

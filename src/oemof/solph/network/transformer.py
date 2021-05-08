@@ -24,6 +24,12 @@ from ._helpers import check_node_object_for_missing_attribute
 class Transformer(on.Transformer):
     """A linear Transformer object with n inputs and n outputs.
 
+    For a MultiPeriodModel, the Flow output(s) should either have a
+    boolean attribute :attr:`multiperiod`, to indicate a transformer used in
+    the dispatch mode, or an attribute :attr:`multiperiodinvestment` of type
+    :class:`MultiPeriodInvestment <oemof.solph.options.MultiPeriodInvestment>`
+    for a transformer that will be invested in.
+
     Parameters
     ----------
     conversion_factors : dict
@@ -89,5 +95,19 @@ class Transformer(on.Transformer):
         for cf in missing_conversion_factor_keys:
             self.conversion_factors[cf] = sequence(1)
 
+        # Check outputs for multiperiod modeling
+        for v in self.outputs.values():
+            if (hasattr(v, 'multiperiod')
+                    or hasattr(v, 'multiperiodinvestment')):
+                if (v.multiperiod is not None
+                        or v.multiperiodinvestment is not None):
+                    self.multiperiod = True
+                    break
+                else:
+                    self.multiperiod = False
+
     def constraint_group(self):
-        return blocks.Transformer
+        if not self.multiperiod:
+            return blocks.Transformer
+        else:
+            return blocks.MultiPeriodTransformer

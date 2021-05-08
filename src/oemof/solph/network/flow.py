@@ -8,6 +8,7 @@ SPDX-FileCopyrightText: Simon Hilpert
 SPDX-FileCopyrightText: Cord Kaldemeyer
 SPDX-FileCopyrightText: Stephan Günther
 SPDX-FileCopyrightText: Birgit Schachler
+SPDX-FileCopyrightText: Johannes Kochems (jokochems)
 
 SPDX-License-Identifier: MIT
 
@@ -74,6 +75,8 @@ class Flow(on.Edge):
         The costs associated with one unit of the flow. If this is set the
         costs will be added to the objective expression of the optimization
         problem.
+        Note: In a multiperiod model, nominal costs have to be used which may
+        vary on a periodical basis but do not vary within a period.
     fixed : boolean
         Boolean value indicating if a flow is fixed during the optimization
         problem to its ex-ante set value. Used in combination with the
@@ -83,6 +86,17 @@ class Flow(on.Edge):
         the optimization problem. Note: This will refer all attributes to an
         investment variable instead of to the nominal_value. The nominal_value
         should not be set (or set to None) if an investment object is used.
+    multiperiod : :class:`MultiPeriod <oemof.solph.options.MultiPeriod>`
+        Object indicating if a multiperiod flow is needed to be created
+        for usage in a MultiPeriodModel
+    multiperiodivestment : :class:`MultiPeriodInvestment
+        <oemof.solph.options.MultiPeriodInvestment>`
+        Object indicating if a nominal_value of the flow is determined by
+        the multiperiod optimization problem through investments.
+        Note: This will refer all attributes to an multiperiodinvestment
+        variable instead of to the nominal_value. The nominal_value
+        should not be set (or set to None) if an multiperiodinvestment
+        object is used.
     nonconvex : :class:`NonConvex <oemof.solph.options.NonConvex>`
         If a nonconvex flow object is added here, the flow constraints will
         be altered significantly as the mathematical model for the flow
@@ -130,27 +144,29 @@ class Flow(on.Edge):
 
         super().__init__()
 
-        scalars = [
-            "nominal_value",
-            "summed_max",
-            "summed_min",
-            "investment",
-            "nonconvex",
-            "integer",
-        ]
-        sequences = ["fix", "variable_costs", "min", "max"]
+        scalars = ["nominal_value",
+                   "summed_max",
+                   "summed_min",
+                   "investment",
+                   "multiperiod",
+                   "multiperiodinvestment",
+                   "nonconvex",
+                   "integer"]
+        sequences = ["fix", "variable_costs", "fixed_costs", "min", "max"]
         dictionaries = ["positive_gradient", "negative_gradient"]
         defaults = {
             "variable_costs": 0,
             "positive_gradient": {"ub": None, "costs": 0},
-            "negative_gradient": {"ub": None, "costs": 0},
+            "negative_gradient": {"ub": None, "costs": 0}
         }
         keys = [k for k in kwargs if k != "label"]
 
-        if "fixed_costs" in keys:
-            raise AttributeError(
-                "The `fixed_costs` attribute has been removed" " with v0.2!"
-            )
+        if 'fixed_costs' in keys:
+            msg = ("Be aware that the fixed costs attribute is only\n"
+                   "meant to be used for MultiPeriodModels.\n"
+                   "It has been decided to remove the `fixed_costs` "
+                   "attribute with v0.2 for regular uses!")
+            warn(msg, debugging.SuspiciousUsageWarning)
 
         if "actual_value" in keys:
             raise AttributeError(
@@ -201,13 +217,25 @@ class Flow(on.Edge):
                 )
 
         # Checking for impossible attribute combinations
-        if self.investment and self.nominal_value is not None:
-            raise ValueError(
-                "Using the investment object the nominal_value"
-                " has to be set to None."
-            )
-        if self.investment and self.nonconvex:
-            raise ValueError(
-                "Investment flows cannot be combined with "
-                + "nonconvex flows!"
-            )
+        if ((self.investment or self.multiperiodinvestment)
+                and self.nominal_value is not None):
+            raise ValueError("Using the investment object the nominal_value"
+                             " has to be set to None.")
+        if ((self.investment or self.multiperiodinvestment)
+                and self.nonconvex):
+            raise ValueError("Investment flows cannot be combined with "
+                             "nonconvex flows!")
+        if self.investment and self.multiperiodinvestment:
+            raise ValueError("Either use a standard investment flow for "
+                             "standard investment models or a "
+                             "multiperiodinvestment flow for "
+                             "MultiPeriodModels.\n"
+                             "Combining both is not feasible!")
+        if self.multiperiod is True and self.multiperiodinvestment:
+            raise ValueError("In a MultiPeriodModel, a flow can either "
+                             "be defined to be a flow for dispatch only,\n"
+                             "when setting the attribute `multiperiod` to "
+                             "True,\nor it can be defined to be used for "
+                             "investments,\nwhen a `multiperiodinvestment` "
+                             "object is declared.\nCombining both is not "
+                             "feasible!")

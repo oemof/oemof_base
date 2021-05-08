@@ -9,6 +9,7 @@ SPDX-FileCopyrightText: Simon Hilpert
 SPDX-FileCopyrightText: Cord Kaldemeyer
 SPDX-FileCopyrightText: Stephan Günther
 SPDX-FileCopyrightText: henhuy
+SPDX-FileCopyrightText: Johannes Kochems (jokochems)
 
 SPDX-License-Identifier: MIT
 
@@ -29,8 +30,10 @@ def node(results, node, multiindex=False, keep_none_type=False):
     Obtain results for a single node e.g. a Bus or Component.
 
     Either a node or its label string can be passed.
-    Results are written into a dictionary which is keyed by 'scalars' and
-    'sequences' holding respective data in a pandas Series and DataFrame.
+    Results are written into a dictionary which is keyed by 'scalars'
+    (resp. 'periods_scalars' for a MultiPeriodModel) and
+    'sequences' holding respective data in a pandas Series (resp. DataFrame)
+    and DataFrame.
     """
 
     def replace_none(col_list, reverse=False):
@@ -58,19 +61,24 @@ def node(results, node, multiindex=False, keep_none_type=False):
     filtered = {}
 
     # create a series with tuples as index labels for scalars
+    scalars = {}
+    scalars_col = 'scalars'
+    # Check for MultiPeriodModel (different naming)
+    if 'period_scalars' in list(list(results.values())[0].keys()):
+        scalars_col = 'period_scalars'
+
     scalars = {
-        k: v["scalars"]
-        for k, v in results.items()
-        if node in k and not v["scalars"].empty
+        k: v[scalars_col] for k, v in results.items()
+        if node in k and not v[scalars_col].empty
     }
     if scalars:
         # aggregate data
         filtered["scalars"] = pd.concat(scalars.values(), axis=0)
         # assign index values
         idx = {
-            k: [c for c in v["scalars"].index]
+            k: [c for c in v[scalars_col].index]
             for k, v in results.items()
-            if node in k and not v["scalars"].empty
+            if node in k and not v[scalars_col].empty
         }
         idx = [tuple((k, m) for m in v) for k, v in idx.items()]
         idx = [i for sublist in idx for i in sublist]

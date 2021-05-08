@@ -6,6 +6,8 @@ SPDX-FileCopyrightText: Uwe Krien <krien@uni-bremen.de>
 SPDX-FileCopyrightText: Simon Hilpert
 SPDX-FileCopyrightText: Patrik Schönfeldt
 SPDX-FileCopyrightText: Johannes Röder
+SPDX-FileCopyrightText: Johannes Kochems
+SPDX-FileCopyrightText: Johannes Giehl
 
 SPDX-License-Identifier: MIT
 
@@ -14,6 +16,7 @@ SPDX-License-Identifier: MIT
 from pyomo import environ as po
 
 from oemof.solph.plumbing import sequence
+from oemof.solph.models import MultiPeriodModel
 
 
 def emission_limit(om, flows=None, limit=None):
@@ -58,7 +61,7 @@ def generic_integral_limit(om, keyword, flows=None, limit=None):
 
     **Constraint:**
 
-    .. math:: \sum_{i \in F_E} \sum_{t \in T} P_i(t) \cdot w_i(t)
+    .. math:: \sum_{i \in F_I} \sum_{t \in T} P_i(t) \cdot w_i(t)
                \cdot \tau(t) \leq M
 
 
@@ -112,24 +115,46 @@ def generic_integral_limit(om, keyword, flows=None, limit=None):
 
     limit_name = "integral_limit_" + keyword
 
-    setattr(
-        om,
-        limit_name,
-        po.Expression(
-            expr=sum(
-                om.flow[inflow, outflow, t]
-                * om.timeincrement[t]
-                * sequence(getattr(flows[inflow, outflow], keyword))[t]
-                for (inflow, outflow) in flows
-                for t in om.TIMESTEPS
-            )
-        ),
-    )
+    if isinstance(om, MultiPeriodModel):
+        setattr(
+            om,
+            limit_name,
+            po.Expression(
+                expr=sum(
+                    om.flow[inflow, outflow, p, t]
+                    * om.timeincrement[t]
+                    * sequence(getattr(flows[inflow, outflow], keyword))[t]
+                    for (inflow, outflow) in flows
+                    for p, t in om.TIMEINDEX
+                )
+            ),
+        )
 
-    setattr(
-        om,
-        limit_name + "_constraint",
-        po.Constraint(expr=(getattr(om, limit_name) <= limit)),
-    )
+        setattr(
+            om,
+            limit_name + "_constraint",
+            po.Constraint(expr=(getattr(om, limit_name) <= limit)),
+        )
+
+    else:
+        setattr(
+            om,
+            limit_name,
+            po.Expression(
+                expr=sum(
+                    om.flow[inflow, outflow, t]
+                    * om.timeincrement[t]
+                    * sequence(getattr(flows[inflow, outflow], keyword))[t]
+                    for (inflow, outflow) in flows
+                    for t in om.TIMESTEPS
+                )
+            ),
+        )
+
+        setattr(
+            om,
+            limit_name + "_constraint",
+            po.Constraint(expr=(getattr(om, limit_name) <= limit)),
+        )
 
     return om
