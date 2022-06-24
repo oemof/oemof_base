@@ -117,7 +117,7 @@ class Flow(SimpleBlock):
                 (g[0], g[1])
                 for g in group
                 if g[2].summed_max is not None
-                and g[2].nominal_value is not None
+                   and g[2].nominal_value is not None
             ]
         )
 
@@ -126,7 +126,7 @@ class Flow(SimpleBlock):
                 (g[0], g[1])
                 for g in group
                 if g[2].summed_min is not None
-                and g[2].nominal_value is not None
+                   and g[2].nominal_value is not None
             ]
         )
 
@@ -259,11 +259,23 @@ class Flow(SimpleBlock):
 
         for i, o in m.FLOWS:
             if m.flows[i, o].variable_costs[0] is not None:
-                for t in m.TIMESTEPS:
-                    variable_costs += (
-                        m.flow[i, o, t]
-                        * m.objective_weighting[t]
-                        * m.flows[i, o].variable_costs[t]
-                    )
+                if m.cellular_system:
+                    if i.cell_list and o.cell_list:
+                        intersection = set(i.cell_list) & set(o.cell_list)
+                        weight = len(intersection)
+                        for t in m.TIMESTEPS:
+                            variable_costs += (
+                                m.flow[i, o, t]
+                                * m.objective_weighting[t]
+                                * m.flows[i, o].variable_costs[t]
+                                * weight
+                            )
+                else:
+                    for t in m.TIMESTEPS:
+                        variable_costs += (
+                            m.flow[i, o, t]
+                            * m.objective_weighting[t]
+                            * m.flows[i, o].variable_costs[t]
+                            )
 
         return variable_costs

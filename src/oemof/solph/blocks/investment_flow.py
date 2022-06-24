@@ -412,14 +412,34 @@ class InvestmentFlow(SimpleBlock):
         investment_costs = 0
 
         for i, o in self.CONVEX_INVESTFLOWS:
-            investment_costs += (
-                self.invest[i, o] * m.flows[i, o].investment.ep_costs
-            )
+            if m.cellular_system:
+                if i.cell_list and o.cell_list:
+                    intersection = set(i.cell_list) & set(o.cell_list)
+                    weight = len(intersection)
+                    investment_costs += (
+                        self.invest[i, o]
+                        * m.flows[i, o].investment.ep_costs
+                        * weight
+                    )
+            else:
+                investment_costs += (
+                    self.invest[i, o] * m.flows[i, o].investment.ep_costs
+                )
         for i, o in self.NON_CONVEX_INVESTFLOWS:
-            investment_costs += (
-                self.invest[i, o] * m.flows[i, o].investment.ep_costs
-                + self.invest_status[i, o] * m.flows[i, o].investment.offset
-            )
+            if m.cellular_system:
+                if i.cell_list and o.cell_list:
+                    intersection = set(i.cell_list) & set(o.cell_list)
+                    weight = len(intersection)
+                    investment_costs += (
+                        self.invest[i, o] * m.flows[i, o].investment.ep_costs * weight
+                        + self.invest_status[i, o] * m.flows[i, o].investment.offset
+                    )
+
+            else:
+                investment_costs += (
+                    self.invest[i, o] * m.flows[i, o].investment.ep_costs
+                    + self.invest_status[i, o] * m.flows[i, o].investment.offset
+                )
 
         self.investment_costs = Expression(expr=investment_costs)
         return investment_costs

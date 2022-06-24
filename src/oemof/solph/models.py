@@ -74,6 +74,7 @@ class BaseModel(po.ConcreteModel):
         self.timeincrement = sequence(
             kwargs.get("timeincrement", self.es.timeincrement)
         )
+        self.cellular_system = kwargs.get("cellular_system", False)
         if self.timeincrement[0] is None:
             try:
                 self.timeincrement = sequence(
