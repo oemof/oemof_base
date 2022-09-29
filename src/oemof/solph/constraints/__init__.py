@@ -11,6 +11,8 @@ from .integral_limit import generic_integral_limit
 from .investment_limit import additional_investment_flow_limit
 from .investment_limit import investment_limit
 from .shared_limit import shared_limit
+from .set_idle_time import set_idle_time
+
 
 __all__ = [
     "equate_variables",
@@ -21,4 +23,5 @@ __all__ = [
     "additional_investment_flow_limit",
     "investment_limit",
     "shared_limit",
+    "set_idle_time",
 ]

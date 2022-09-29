@@ -886,6 +886,35 @@ class TestsConstraint:
 
         self.compare_lp_files("connect_investment.lp", my_om=om)
 
+    def test_flow_idle(self):
+        bus = solph.buses.Bus(label="Bus")
+        sink = solph.components.Sink(
+            label="Sink",
+            inputs={
+                bus: solph.flows.Flow(
+                    nominal_value=1,
+                    min=0.2,
+                    nonconvex=solph.NonConvex(),
+                )
+            },
+        )
+        source = solph.components.Source(
+            label="Source",
+            outputs={
+                bus: solph.flows.Flow(
+                    nominal_value=1,
+                    min=0.2,
+                    nonconvex=solph.NonConvex(),
+                )
+            },
+        )
+
+        om = self.get_om()
+        solph.constraints.set_idle_time(om, (source, bus), (bus, sink), n=1)
+
+        self.compare_lp_files("set_idle_time.lp", my_om=om)
+
+
     def test_gradient(self):
         """Testing gradient constraints and costs."""
         bel = solph.buses.Bus(label="electricityBus")
