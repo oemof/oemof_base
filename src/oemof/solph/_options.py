@@ -158,6 +158,7 @@ class NonConvex:
     def __init__(self, **kwargs):
         scalars = [
             "minimum_uptime",
+            "maximum_uptime",
             "minimum_downtime",
             "initial_status",
             "maximum_startups",
@@ -206,6 +207,8 @@ class NonConvex:
             max_up_down = self.minimum_uptime
         elif self.minimum_uptime is None and self.minimum_downtime is not None:
             max_up_down = self.minimum_downtime
+        elif self.maximum_uptime is not None:
+            max_up_down = self.maximum_uptime
         else:
             max_up_down = max(self.minimum_uptime, self.minimum_downtime)
 

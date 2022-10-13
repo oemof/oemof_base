@@ -373,6 +373,13 @@ class NonConvexFlowBlock(ScalarBlock):
                 if g[2].nonconvex.minimum_uptime is not None
             ]
         )
+        self.MAXUPTIMEFLOWS = Set(
+            initialize=[
+                (g[0], g[1])
+                for g in group
+                if g[2].nonconvex.maximum_uptime is not None
+            ]
+        )
 
         self.MINDOWNTIMEFLOWS = Set(
             initialize=[
@@ -543,6 +550,34 @@ class NonConvexFlowBlock(ScalarBlock):
 
         self.min_uptime_constr = Constraint(
             self.MINUPTIMEFLOWS, m.TIMESTEPS, rule=_min_uptime_rule
+        )
+
+        def _max_uptime_rule(block, i, o, t):
+            """
+            Rule definition for max-uptime constraints of nonconvex flows.
+            """
+            if (
+                m.flows[i, o].nonconvex.max_up_down
+                <= t
+                <= m.TIMESTEPS[-1] - m.flows[i, o].nonconvex.max_up_down
+            ):
+                expr = 0
+                expr += m.flows[i, o].nonconvex.maximum_uptime
+                expr += -sum(
+                    self.status[i, o, t - u]
+                    for u in range(
+                        0, m.flows[i, o].nonconvex.maximum_uptime + 1
+                    )
+                )
+                return expr >= 0
+            else:
+                expr = 0
+                expr += self.status[i, o, t]
+                expr += -m.flows[i, o].nonconvex.initial_status
+                return expr == 0
+
+        self.max_uptime_constr = Constraint(
+            self.MAXUPTIMEFLOWS, m.TIMESTEPS, rule=_max_uptime_rule
         )
 
         def _min_downtime_rule(block, i, o, t):
