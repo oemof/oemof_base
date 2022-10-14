@@ -344,6 +344,13 @@ class NonConvexFlowBlock(ScalarBlock):
                 or g[2].nonconvex.maximum_startups is not None
             ]
         )
+        self.PROFILEFLOWS = Set(
+            initialize=[
+                (g[0], g[1])
+                for g in group
+                if g[2].nonconvex.profile is not None
+            ]
+        )
         self.MAXSTARTUPFLOWS = Set(
             initialize=[
                 (g[0], g[1])
@@ -371,6 +378,13 @@ class NonConvexFlowBlock(ScalarBlock):
                 (g[0], g[1])
                 for g in group
                 if g[2].nonconvex.minimum_uptime is not None
+            ]
+        )
+        self.MAXUPTIMEFLOWS = Set(
+            initialize=[
+                (g[0], g[1])
+                for g in group
+                if g[2].nonconvex.maximum_uptime is not None
             ]
         )
 
@@ -545,6 +559,34 @@ class NonConvexFlowBlock(ScalarBlock):
             self.MINUPTIMEFLOWS, m.TIMESTEPS, rule=_min_uptime_rule
         )
 
+        def _max_uptime_rule(block, i, o, t):
+            """
+            Rule definition for max-uptime constraints of nonconvex flows.
+            """
+            if (
+                m.flows[i, o].nonconvex.max_up_down
+                <= t
+                <= m.TIMESTEPS[-1] - m.flows[i, o].nonconvex.max_up_down
+            ):
+                expr = 0
+                expr += m.flows[i, o].nonconvex.maximum_uptime
+                expr += -sum(
+                    self.status[i, o, t - u]
+                    for u in range(
+                        0, m.flows[i, o].nonconvex.maximum_uptime + 1
+                    )
+                )
+                return expr >= 0
+            else:
+                expr = 0
+                expr += self.status[i, o, t]
+                expr += -m.flows[i, o].nonconvex.initial_status
+                return expr == 0
+
+        self.max_uptime_constr = Constraint(
+            self.MAXUPTIMEFLOWS, m.TIMESTEPS, rule=_max_uptime_rule
+        )
+
         def _min_downtime_rule(block, i, o, t):
             """
             Rule definition for min-downtime constraints of nonconvex flows.
@@ -618,6 +660,49 @@ class NonConvexFlowBlock(ScalarBlock):
         )
         self.negative_gradient_build = BuildAction(
             rule=_negative_gradient_flow_rule
+        )
+
+        def _schedule_profile_rule(block, i, o, t):
+            """Rule definition for startup constraint of nonconvex flows."""
+
+            # for i, o in self.PROFILEFLOWS:
+                # for t in m.TIMESTEPS:
+
+            profile_reversed = m.flows[i, o].nonconvex.profile[::-1]
+            len_profile = len(m.flows[i, o].nonconvex.profile)
+
+            if (
+                len(m.flows[i, o].nonconvex.profile) - 1
+                <= t
+                < len(m.TIMESTEPS) - len(m.flows[i, o].nonconvex.profile)
+            ):
+                expr = 0
+                expr += - m.flow[i, o, t]
+                print("f_(", t, ") =\n")
+                for d in range(len_profile):
+                    print(profile_reversed[d], " * binary(", t + d - len_profile + 1, ") + ")
+                    expr += self.startup[i, o, t + d - len_profile + 1] *\
+                            profile_reversed[d]
+
+                return expr == 0
+
+            else:
+                expr = 0
+                expr += - m.flow[i, o, t]
+                return expr == 0
+
+            # ####
+            # for t in m.TIMESTEPS:
+            #     if t < len(m.TIMESTEPS) - len(m.flows[i, o].nonconvex.profile):
+            #         for i in range(len(m.flows[i, o].nonconvex.profile)):
+            #
+            #             expr = (
+            #                 m.flow[i, o, t] = self.startup[i, o, t]
+            #             )
+            # return expr
+
+        self.schedule_profile_constr = Constraint(
+            self.PROFILEFLOWS, m.TIMESTEPS, rule=_schedule_profile_rule
         )
 
     def _objective_expression(self):
