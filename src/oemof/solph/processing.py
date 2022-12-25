@@ -21,6 +21,7 @@ from itertools import groupby
 import numpy as np
 import pandas as pd
 from oemof.network.network import Node
+from pyomo.core.base.constraint import Constraint
 from pyomo.core.base.piecewise import IndexedPiecewise
 from pyomo.core.base.var import Var
 
@@ -255,6 +256,15 @@ def results(model, remove_last_time_point=False):
                 }
             else:
                 result[(bus, None)]["sequences"]["duals"] = duals
+
+        constraints = set(
+            [i._component() for i in om.component_data_objects(Constraint)]
+        )
+
+        for constraint in constraints:
+            result[constraint, None] = {
+                k: om.dual[v] for k, v in constraint.iteritems()
+            }
 
     return result
 
