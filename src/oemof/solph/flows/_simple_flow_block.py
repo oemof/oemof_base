@@ -465,13 +465,37 @@ class SimpleFlowBlock(ScalarBlock):
         else:
             for i, o in m.FLOWS:
                 if m.flows[i, o].variable_costs[0] is not None:
-                    for p, t in m.TIMEINDEX:
-                        variable_costs += (
-                            m.flow[i, o, p, t]
-                            * m.objective_weighting[t]
-                            * m.flows[i, o].variable_costs[t]
-                            * ((1 + m.discount_rate) ** -m.es.periods_years[p])
-                        )
+                    if m.es.representative_years:
+                        for p, timesteps in m.TIMESTEPS_IN_PERIOD.items():
+                            # sum variable costs of representative year
+                            variable_costs_increment = sum(
+                                m.flow[i, o, p, t]
+                                * m.objective_weighting[t]
+                                * m.flows[i, o].variable_costs[t]
+                                * (
+                                    (1 + m.discount_rate)
+                                    ** -m.es.periods_years[p]
+                                )
+                                for t in timesteps
+                            )
+
+                            # add variable costs of all years
+                            variable_costs += sum(
+                                variable_costs_increment
+                                * ((1 + m.discount_rate) ** (-pp))
+                                for pp in range(0, m.es.get_period_duration(p))
+                            )
+                    else:
+                        for p, t in m.TIMEINDEX:
+                            variable_costs += (
+                                m.flow[i, o, p, t]
+                                * m.objective_weighting[t]
+                                * m.flows[i, o].variable_costs[t]
+                                * (
+                                    (1 + m.discount_rate)
+                                    ** -m.es.periods_years[p]
+                                )
+                            )
 
                 # Include fixed costs of units operating "forever"
                 if (

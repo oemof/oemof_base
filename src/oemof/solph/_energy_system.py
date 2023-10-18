@@ -61,6 +61,11 @@ class EnergySystem(es.EnergySystem):
 
         For a standard model, periods are not (to be) declared, i.e. None.
         A list with one entry is derived, i.e. [0].
+    use_representative_years : bool
+        If True, the timeseries passed are interpreted as representative year
+        for each period. This feature can be used to model long-term investment
+        problems. If False, the timeseries passed are interpreted as the full
+        timeseries for each period.
 
     kwargs
     """
@@ -71,6 +76,7 @@ class EnergySystem(es.EnergySystem):
         timeincrement=None,
         infer_last_interval=None,
         periods=None,
+        use_representative_years=False,
         **kwargs,
     ):
         # Doing imports at runtime is generally frowned upon, but should work
@@ -172,6 +178,7 @@ class EnergySystem(es.EnergySystem):
             )
             warnings.warn(msg, debugging.SuspiciousUsageWarning)
         self.periods = periods
+        self.representative_years = use_representative_years
         self._extract_periods_years()
         self._extract_periods_matrix()
 
@@ -207,6 +214,36 @@ class EnergySystem(es.EnergySystem):
                 row = np.where(row < 0, 0, row)
                 periods_matrix.append(row)
             self.periods_matrix = np.array(periods_matrix)
+
+    def get_period_duration(self, period):
+        """Get duration of a period in full years
+
+        Parameters
+        ----------
+        period : int
+            Period for which the duration in years shall be obtained
+
+        Returns
+        -------
+        int
+            Duration of the period
+        """
+        period = self.period[period]
+        if period < len(self.periods):
+            duration = (
+                self.periods[period + 1].min().year
+                - self.periods[period].min().year
+            )
+        elif period == len(self.periods):
+            duration = (
+                self.periods[period].max().year
+                - self.periods[period].min().year
+                + 1
+            )
+        else:
+            raise KeyError("Key 'period' needs to be <= number of periods")
+
+        return duration
 
 
 def create_time_index(
