@@ -1,0 +1,41 @@
+v0.6.0 (????)
+-------------
+
+API changes
+###########
+
+* New attribute `tsa_paramters` of `oemof.solph.EnergySystem`
+
+New features
+############
+
+* Allow usage of aggregated timeseries by
+  [TSAM](https://github.com/FZJ-IEK3-VSA/tsam) module. Original timeseries is
+  reflected by weighting typical periods (output from TSAM) accordingly.
+  Thus, variable costs, full load hours, startup/shutdown costs are weighted
+  accordingly to occurrences of typical period in original timeseries.
+  Additionally, storage equations are adapted in order to respect
+  long-term/saisonal energy storage.
+
+Documentation
+#############
+
+Bug fixes
+#########
+
+* Fix objective weighting for startup and shutdown costs in case of no
+  multi-period approach.
+
+Testing
+#######
+
+* Added test for comparison of TSAM mode versus original mode.
+  Including testing of storage behaviour, variable and investment costs.
+
+Contributors
+############
+
+* Hendrik Huyskens
+* Maximilian Hillen
+* Patrik Schönfeldt
+* Johannes Kochems

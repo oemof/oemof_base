@@ -215,7 +215,9 @@ class SimpleFlowBlock(ScalarBlock):
             """Rule definition for build action of max. sum flow constraint."""
             for inp, out in self.FULL_LOAD_TIME_MAX_FLOWS:
                 lhs = sum(
-                    m.flow[inp, out, p, ts] * m.timeincrement[ts]
+                    m.flow[inp, out, p, ts]
+                    * m.timeincrement[ts]
+                    * m.tsam_weighting[ts]
                     for p, ts in m.TIMEINDEX
                 )
                 rhs = (
@@ -235,7 +237,9 @@ class SimpleFlowBlock(ScalarBlock):
             """Rule definition for build action of min. sum flow constraint."""
             for inp, out in self.FULL_LOAD_TIME_MIN_FLOWS:
                 lhs = sum(
-                    m.flow[inp, out, p, ts] * m.timeincrement[ts]
+                    m.flow[inp, out, p, ts]
+                    * m.timeincrement[ts]
+                    * m.tsam_weighting[ts]
                     for p, ts in m.TIMEINDEX
                 )
                 rhs = (
@@ -465,7 +469,9 @@ class SimpleFlowBlock(ScalarBlock):
                     for p, t in m.TIMEINDEX:
                         variable_costs += (
                             m.flow[i, o, p, t]
+                            * m.timeincrement[t]
                             * m.objective_weighting[t]
+                            * m.tsam_weighting[t]
                             * m.flows[i, o].variable_costs[t]
                         )
 
@@ -475,7 +481,9 @@ class SimpleFlowBlock(ScalarBlock):
                     for p, t in m.TIMEINDEX:
                         variable_costs += (
                             m.flow[i, o, p, t]
+                            * m.timeincrement[t]
                             * m.objective_weighting[t]
+                            * m.tsam_weighting[t]
                             * m.flows[i, o].variable_costs[t]
                             * ((1 + m.discount_rate) ** -m.es.periods_years[p])
                         )

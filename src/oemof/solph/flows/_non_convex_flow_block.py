@@ -364,6 +364,8 @@ class NonConvexFlowBlock(ScalarBlock):
                     if m.flows[i, o].nonconvex.shutdown_costs[0] is not None:
                         shutdown_costs += sum(
                             self.shutdown[i, o, t]
+                            * m.objective_weighting[t]
+                            * m.tsam_weighting[t]
                             * m.flows[i, o].nonconvex.shutdown_costs[t]
                             for t in m.TIMESTEPS
                         )
@@ -374,6 +376,7 @@ class NonConvexFlowBlock(ScalarBlock):
                             self.shutdown[i, o, t]
                             * m.flows[i, o].nonconvex.shutdown_costs[t]
                             * m.objective_weighting[t]
+                            * m.tsam_weighting[t]
                             * ((1 + m.discount_rate) ** -m.es.periods_years[p])
                             for p, t in m.TIMEINDEX
                         )
@@ -399,6 +402,8 @@ class NonConvexFlowBlock(ScalarBlock):
                         activity_costs += sum(
                             self.status[i, o, t]
                             * m.flows[i, o].nonconvex.activity_costs[t]
+                            * m.objective_weighting[t]
+                            * m.tsam_weighting[t]
                             for t in m.TIMESTEPS
                         )
             else:
@@ -408,6 +413,7 @@ class NonConvexFlowBlock(ScalarBlock):
                             self.status[i, o, t]
                             * m.flows[i, o].nonconvex.activity_costs[t]
                             * m.objective_weighting[t]
+                            * m.tsam_weighting[t]
                             * ((1 + m.discount_rate) ** -m.es.periods_years[p])
                             for p, t in m.TIMEINDEX
                         )
@@ -432,6 +438,8 @@ class NonConvexFlowBlock(ScalarBlock):
                     if m.flows[i, o].nonconvex.inactivity_costs[0] is not None:
                         inactivity_costs += sum(
                             (1 - self.status[i, o, t])
+                            * m.objective_weighting[t]
+                            * m.tsam_weighting[t]
                             * m.flows[i, o].nonconvex.inactivity_costs[t]
                             for t in m.TIMESTEPS
                         )
@@ -442,6 +450,7 @@ class NonConvexFlowBlock(ScalarBlock):
                             (1 - self.status[i, o, t])
                             * m.flows[i, o].nonconvex.inactivity_costs[t]
                             * m.objective_weighting[t]
+                            * m.tsam_weighting[t]
                             * ((1 + m.discount_rate) ** -m.es.periods_years[p])
                             for p, t in m.TIMEINDEX
                         )

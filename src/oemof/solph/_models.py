@@ -125,7 +125,10 @@ class BaseModel(po.ConcreteModel):
         self.timeincrement = kwargs.get("timeincrement", self.es.timeincrement)
 
         self.objective_weighting = kwargs.get(
-            "objective_weighting", self.timeincrement
+            "objective_weighting",
+            [1] * len(self.timeincrement)
+            if self.timeincrement is not None
+            else [1],
         )
 
         self._constraint_groups = type(self).CONSTRAINT_GROUPS + kwargs.get(
@@ -460,6 +463,61 @@ class Model(BaseModel):
             timesteps_in_period[p].append(t)
         self.TIMESTEPS_IN_PERIOD = timesteps_in_period
 
+        # Set up disaggregated timesteps from original timeseries
+        self.TSAM_MODE = False
+        if self.es.tsa_parameters is None:
+            self.tsam_weighting = [1] * len(self.timeincrement)
+        else:
+            self.TSAM_MODE = True
+
+            # Construct weighting from occurrences and order
+            self.tsam_weighting = list(
+                self.es.tsa_parameters[p]["occurrences"][k]
+                for p in self.PERIODS
+                for k in range(len(self.es.tsa_parameters[p]["occurrences"]))
+                for _ in range(
+                    self.es.tsa_parameters[p]["timesteps"]
+                )
+            )
+            self.CLUSTERS = po.Set(
+                initialize=list(
+                    range(
+                        sum(
+                            len(self.es.tsa_parameters[p]["order"])
+                            for p in self.PERIODS
+                        )
+                    )
+                )
+            )
+            self.CLUSTERS_OFFSET = po.Set(
+                initialize=list(
+                    range(
+                        sum(
+                            len(self.es.tsa_parameters[p]["order"])
+                            for p in self.PERIODS
+                        )
+                        + 1
+                    )
+                )
+            )
+            self.TYPICAL_CLUSTERS = po.Set(
+                initialize=[
+                    (p, i)
+                    for p in self.PERIODS
+                    for i in range(
+                        len(self.es.tsa_parameters[p]["occurrences"])
+                    )
+                ]
+            )
+
+            self.TIMEINDEX_CLUSTER = self.get_cluster_index("order", 0)
+            self.TIMEINDEX_TYPICAL_CLUSTER = self.get_cluster_index(
+                "occurrences", 0
+            )
+            self.TIMEINDEX_TYPICAL_CLUSTER_OFFSET = self.get_cluster_index(
+                "occurrences", 1
+            )
+
         # previous timesteps
         previous_timesteps = [x - 1 for x in self.TIMESTEPS]
         previous_timesteps[0] = self.TIMESTEPS.last()
@@ -520,3 +578,26 @@ class Model(BaseModel):
                 if (o, i) in self.UNIDIRECTIONAL_FLOWS:
                     for p, t in self.TIMEINDEX:
                         self.flow[o, i, p, t].setlb(0)
+
+    def get_timestep_from_tsam_timestep(self, p, ik, g):
+        """Return original timestep from cluster-based timestep"""
+        t = (
+            p * len(self.TIMESTEPS_IN_PERIOD[p])
+            + ik * self.es.tsa_parameters[p]["timesteps"]
+            + g
+        )
+        return t
+
+    def get_cluster_index(self, cluster_type, offset):
+        """
+        Return cluster index for original or typical periods with or
+        without offset
+        """
+        return [
+            (p, k, t)
+            for p in range(len(self.es.tsa_parameters))
+            for k in range(len(self.es.tsa_parameters[p][cluster_type]))
+            for t in range(
+                self.es.tsa_parameters[p]["timesteps"] + offset
+            )
+        ]
