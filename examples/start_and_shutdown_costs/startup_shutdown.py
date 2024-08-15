@@ -101,6 +101,7 @@ def main():
         },
     )
     es.add(bel, demand_el, pp1, pp2)
+
     # create an optimization problem and solve it
     om = solph.Model(es)
 

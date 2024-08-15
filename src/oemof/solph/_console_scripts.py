@@ -48,8 +48,8 @@ def check_oemof_installation(silent=False):
     om = solph.Model(energysystem)
 
     # check solvers
-    solver = dict()
-    for s in ["cbc", "glpk", "gurobi", "cplex"]:
+    solver = {}
+    for s in ["cbc", "glpk", "gurobi", "cplex", "scip"]:
         try:
             om.solve(solver=s)
             solver[s] = "working"
@@ -57,13 +57,15 @@ def check_oemof_installation(silent=False):
             solver[s] = "not working"
 
     if not silent:
-        print()
-        print("*****************************")
-        print("Solver installed with oemof:")
+        _print_division_line("Solver installed with oemof:")
         print()
         for s, t in solver.items():
             print("{0}: {1}".format(s, t))
-        print()
+        _print_division_line("oemof successfully installed.")
         print("*****************************")
-        print("oemof successfully installed.")
-        print("*****************************")
+
+
+def _print_division_line(arg0):
+    print()
+    print("*****************************")
+    print(arg0)
