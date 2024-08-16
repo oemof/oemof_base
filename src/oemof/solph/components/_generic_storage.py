@@ -120,7 +120,9 @@ class GenericStorage(Node):
         Determine the lifetime of an outflow; only applicable for multi-period
         models which can invest in storage capacity and have an
         invest_relation_output_capacity defined
-
+    multiple_tsam_timegrid : boolean
+        Relevant in tsam mode.
+        If true, inter and intra storage content is considers.
     Notes
     -----
     The following sets, variables, constraints and objective parts are created
@@ -186,6 +188,7 @@ class GenericStorage(Node):
         lifetime_inflow=None,
         lifetime_outflow=None,
         custom_attributes=None,
+        multiple_tsam_timegrid=True,
     ):
         if inputs is None:
             inputs = {}
@@ -243,7 +246,7 @@ class GenericStorage(Node):
         self.invest_relation_output_capacity = invest_relation_output_capacity
         self.lifetime_inflow = lifetime_inflow
         self.lifetime_outflow = lifetime_outflow
-
+        self.multiple_tsam_timegrid = multiple_tsam_timegrid
         # Check number of flows.
         self._check_number_of_flows()
         # Check for infeasible parameter combinations
@@ -505,7 +508,17 @@ class GenericStorageBlock(ScalarBlock):
                 n.nominal_storage_capacity * n.max_storage_level[t],
             )
             return bounds
-
+        def _storage_content_bound_intra_rule(block, n, p, k, g):
+            """
+            Rule definition for bounds of storage_content variable of
+            storage n in timestep t.
+            """
+            t = m.get_timestep_from_tsam_timestep(p, k, g)
+            bounds = (
+                n.nominal_storage_capacity * n.min_storage_level[t],
+                n.nominal_storage_capacity * n.max_storage_level[t],
+            )
+            return bounds
         if not m.TSAM_MODE:
             self.storage_content = Var(
                 self.STORAGES, m.TIMEPOINTS, bounds=_storage_content_bound_rule
@@ -520,23 +533,37 @@ class GenericStorageBlock(ScalarBlock):
                     )
                     self.storage_content[n, 0].fix()
         else:
-            self.storage_content_inter = Var(
-                self.STORAGES, m.CLUSTERS_OFFSET, within=NonNegativeReals
-            )
-            self.storage_content_intra = Var(
-                self.STORAGES, m.TIMEINDEX_TYPICAL_CLUSTER_OFFSET
-            )
+            for n in group:
+                if n.multiple_tsam_timegrid:
+                    self.storage_content_inter = Var(
+                        self.STORAGES, m.CLUSTERS_OFFSET, within=NonNegativeReals
+                    )
+                    self.storage_content_intra = Var(
+                        self.STORAGES, m.TIMEINDEX_TYPICAL_CLUSTER_OFFSET
+                    )
+                else:
+                    self.storage_content_intra = Var(
+                        self.STORAGES, m.TIMEINDEX_TYPICAL_CLUSTER_OFFSET, bounds=_storage_content_bound_intra_rule
+                    )
             # set the initial intra storage content
             # first timestep in intra storage is always zero
             for n in group:
                 for p, k in m.TYPICAL_CLUSTERS:
-                    self.storage_content_intra[n, p, k, 0] = 0
-                    self.storage_content_intra[n, p, k, 0].fix()
-                if n.initial_storage_level is not None:
-                    self.storage_content_inter[n, 0] = (
-                        n.initial_storage_level * n.nominal_storage_capacity
-                    )
-                    self.storage_content_inter[n, 0].fix()
+                    if n.multiple_tsam_timegrid:
+                        self.storage_content_intra[n, p, k, 0] = 0
+                        self.storage_content_intra[n, p, k, 0].fix()
+                    else:
+                        if n.initial_storage_level is not None:
+                            self.storage_content_intra[n, p, k, 0] = n.initial_storage_level * \
+                                                                     n.nominal_storage_capacity
+                            self.storage_content_intra[n, p, k, 0].fix()
+                if n.initial_storage_level is not None and n.multiple_tsam_timegrid:
+                        self.storage_content_inter[n, 0] = (
+                            n.initial_storage_level * n.nominal_storage_capacity
+                        )
+                        self.storage_content_inter[n, 0].fix()
+
+
         #  ************* Constraints ***************************
 
         def _storage_inter_minimum_level_rule(block):
@@ -566,13 +593,15 @@ class GenericStorageBlock(ScalarBlock):
                     )
 
         if m.TSAM_MODE:
-            self.storage_inter_minimum_level = Constraint(
-                self.STORAGES, m.TIMEINDEX_CLUSTER, noruleinit=True
-            )
+            for n in self.STORAGES:
+                if n.multiple_tsam_timegrid:
+                    self.storage_inter_minimum_level = Constraint(
+                        self.STORAGES, m.TIMEINDEX_CLUSTER, noruleinit=True
+                    )
 
-            self.storage_inter_minimum_level_build = BuildAction(
-                rule=_storage_inter_minimum_level_rule
-            )
+                    self.storage_inter_minimum_level_build = BuildAction(
+                        rule=_storage_inter_minimum_level_rule
+                    )
 
         def _storage_inter_maximum_level_rule(block):
             for n in self.STORAGES:
@@ -598,13 +627,15 @@ class GenericStorageBlock(ScalarBlock):
                     )
 
         if m.TSAM_MODE:
-            self.storage_inter_maximum_level = Constraint(
-                self.STORAGES, m.TIMEINDEX_CLUSTER, noruleinit=True
-            )
+            for n in self.STORAGES:
+                if n.multiple_tsam_timegrid:
+                    self.storage_inter_maximum_level = Constraint(
+                        self.STORAGES, m.TIMEINDEX_CLUSTER, noruleinit=True
+                    )
 
-            self.storage_inter_maximum_level_build = BuildAction(
-                rule=_storage_inter_maximum_level_rule
-            )
+                    self.storage_inter_maximum_level_build = BuildAction(
+                        rule=_storage_inter_maximum_level_rule
+                    )
 
         def _storage_balance_rule(block, n, p, t):
             """
@@ -702,11 +733,13 @@ class GenericStorageBlock(ScalarBlock):
             return expr == 0
 
         if m.TSAM_MODE:
-            self.inter_balance = Constraint(
-                self.STORAGES,
-                m.CLUSTERS,
-                rule=_inter_storage_balance_rule,
-            )
+            for n in self.STORAGES:
+                if n.multiple_tsam_timegrid:
+                    self.inter_balance = Constraint(
+                        self.STORAGES,
+                        m.CLUSTERS,
+                        rule=_inter_storage_balance_rule,
+                    )
 
         def _balanced_storage_rule(block, n):
             """
@@ -733,9 +766,11 @@ class GenericStorageBlock(ScalarBlock):
                 self.STORAGES_BALANCED, rule=_balanced_storage_rule
             )
         else:
-            self.balanced_cstr = Constraint(
-                self.STORAGES_BALANCED, rule=_balanced_inter_storage_rule
-            )
+            for n in self.STORAGES:
+                if n.multiple_tsam_timegrid:
+                    self.balanced_cstr = Constraint(
+                    self.STORAGES_BALANCED, rule=_balanced_inter_storage_rule
+                    )
 
         def _power_coupled(block):
             """

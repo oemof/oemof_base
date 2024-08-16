@@ -570,7 +570,6 @@ def _calculate_soc_from_inter_and_intra_soc(soc, storage, tsa_parameters):
     t_offset = 0
     for p, tsa_period in enumerate(tsa_parameters):
         for i, k in enumerate(tsa_period["order"]):
-            inter_value = soc["inter"].iloc[i_offset + i]["value"]
             # Self-discharge has to be taken into account for calculating
             # inter SOC for each timestep in cluster
             t0 = t_offset + i * tsa_period["timesteps"]
@@ -585,32 +584,38 @@ def _calculate_soc_from_inter_and_intra_soc(soc, storage, tsa_parameters):
                 if is_last_timestep
                 else tsa_period["timesteps"]
             )
-            inter_series = (
-                pd.Series(
-                    itertools.accumulate(
-                        (
-                            (1 - storage.loss_rate[t])
-                            ** tsa_period["segments"][(k, t - t0)]
-                            if "segments" in tsa_period
-                            else 1 - storage.loss_rate[t]
-                            for t in range(
+            intra_series = soc["intra"][(p, k)].iloc[0:timesteps]
+            if storage.multiple_tsam_timegrid:
+                inter_value = soc["inter"].iloc[i_offset + i]["value"]
+                inter_series = (
+                    pd.Series(
+                        itertools.accumulate(
+                            (
+                                (1 - storage.loss_rate[t])
+                                ** tsa_period["segments"][(k, t - t0)]
+                                if "segments" in tsa_period
+                                else 1 - storage.loss_rate[t]
+                                for t in range(
                                 t0,
                                 t0 + timesteps - 1,
                             )
-                        ),
-                        operator.mul,
-                        initial=1,
+                            ),
+                            operator.mul,
+                            initial=1,
+                        )
                     )
+                    * inter_value
                 )
-                * inter_value
-            )
-            intra_series = soc["intra"][(p, k)].iloc[0:timesteps]
-            soc_frame = pd.DataFrame(
-                intra_series["value"].values
-                + inter_series.values,  # Neglect indexes, otherwise none
-                columns=["value"],
-            )
-
+                soc_frame = pd.DataFrame(
+                    intra_series["value"].values
+                    + inter_series.values,  # Neglect indexes, otherwise none
+                    columns=["value"],
+                )
+            else:
+                soc_frame = pd.DataFrame(
+                    intra_series["value"].values,
+                    columns=["value"],
+                )
             # Disaggregate segmentation
             if "segments" in tsa_period:
                 soc_disaggregated = _disaggregate_segmentation(
