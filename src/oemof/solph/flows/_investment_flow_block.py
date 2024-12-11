@@ -119,11 +119,11 @@ class InvestmentFlowBlock(ScalarBlock):
         )
 
         self.FIXED_INVESTFLOWS = Set(
-            initialize=[(g[0], g[1]) for g in group if g[2].fix[0] is not None]
+            initialize=[(g[0], g[1]) for g in group if g[2].fixed is True]
         )
 
         self.NON_FIXED_INVESTFLOWS = Set(
-            initialize=[(g[0], g[1]) for g in group if g[2].fix[0] is None]
+            initialize=[(g[0], g[1]) for g in group if g[2].fixed is True]
         )
 
         self.FULL_LOAD_TIME_MAX_INVESTFLOWS = Set(
@@ -628,7 +628,7 @@ class InvestmentFlowBlock(ScalarBlock):
                 for p, t in m.TIMEINDEX:
                     expr = (
                         m.flow[i, o, t]
-                        == self.total[i, o, p] * m.flows[i, o].fix[t]
+                        == self.total[i, o, p] * m.flows[i, o].value[t]
                     )
                     self.fixed.add((i, o, p, t), expr)
 

@@ -59,6 +59,8 @@ class Flow(Edge):
     fix : numeric (iterable or scalar), :math:`f_{fix}`
         Normed fixed value for the flow variable. Will be multiplied with the
         :attr:`nominal_capacity` to get the absolute value.
+    expected: numeric (iterable or scalar)
+        Normed expected value for the flow variable (cf. fix).
     positive_gradient_limit : numeric (iterable, scalar or None)
         the normed *upper bound* on the positive difference
         (`flow[t-1] < flow[t]`) of two consecutive flow values.
@@ -130,6 +132,7 @@ class Flow(Edge):
         min=None,
         max=None,
         fix=None,
+        expected=None,
         positive_gradient_limit=None,
         negative_gradient_limit=None,
         full_load_time_max=None,
@@ -241,19 +244,23 @@ class Flow(Edge):
         self.age = age
 
         # It is not allowed to define min or max if fix is defined.
-        if fix is not None and (min is not None or max is not None):
+        if fix is not None and (
+            min is not None or max is not None or expected is not None
+        ):
             raise AttributeError(
-                "It is not allowed to define `min`/`max` if `fix` is defined."
+                "It is not allowed to define `min`/`max`/`expected`"
+                + "if `fix` is defined."
             )
 
         need_nominal_value = [
             "fix",
+            "expected",
             "full_load_time_max",
             "full_load_time_min",
             "min",
             "max",
         ]
-        sequences = ["fix", "variable_costs", "min", "max"]
+
         if self.investment is None and self.nominal_capacity is None:
             for attr in need_nominal_value:
                 if isinstance(eval(attr), Iterable):
@@ -278,8 +285,18 @@ class Flow(Edge):
             else:
                 min = 0
 
-        for attr in sequences:
-            setattr(self, attr, sequence(eval(attr)))
+        self.variable_costs = sequence(variable_costs)
+        self.min = sequence(min)
+        self.max = sequence(max)
+
+        self.fixed = False
+        if expected is not None:
+            self.value = sequence(expected)
+        elif fix is not None:
+            self.value = sequence(fix)
+            self.fixed = True
+        else:
+            self.value = sequence(None)
 
         if self.nominal_capacity is not None and not math.isfinite(
             self.max[0]

@@ -98,6 +98,7 @@ class TestParameterResult:
             pandas.Series(
                 {
                     "bidirectional": False,
+                    "fixed": True,
                     "integer": False,
                     "nominal_capacity": 1,
                     "max": 1,
@@ -109,7 +110,7 @@ class TestParameterResult:
         )
         assert_frame_equal(
             param_results[(b_el2, demand)]["sequences"],
-            pandas.DataFrame({"fix": self.demand_values}),
+            pandas.DataFrame({"value": self.demand_values}),
             check_like=True,
         )
 
@@ -121,6 +122,7 @@ class TestParameterResult:
         )
         default_attributes = {
             "age": None,
+            "fixed": True,
             "lifetime": None,
             "integer": False,
             "investment": None,
@@ -144,8 +146,13 @@ class TestParameterResult:
             pandas.Series(default_attributes).sort_index(),
         )
         sequences_attributes = {
-            "fix": self.demand_values,
+            "value": self.demand_values,
         }
+
+        default_sequences = ["value"]
+        for attr in default_sequences:
+            if attr not in sequences_attributes:
+                sequences_attributes[attr] = [None]
 
         assert_frame_equal(
             param_results[(b_el2, demand)]["sequences"],
