@@ -39,6 +39,8 @@ Bug fixes
 Other changes
 #############
 
+* `Model.solve()` will now fail, if solver status is nonoptimal. 
+  Added new keyword `allow_nonoptimal` to deactivate this behaviour.
 
 Known issues
 ############
@@ -48,4 +50,5 @@ Contributors
 ############
 
 * Patrik Schönfeldt
+* Eva Schischke
 * Johannes Kochems

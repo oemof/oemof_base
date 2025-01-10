@@ -170,4 +170,8 @@ authors:
     family-names: Gering
     given-names: Marie-Claire
     alias: "@MaGering"
+  -
+    family-names: Schischke
+    given-names: Eva
+    alias: "@esske"
 ...

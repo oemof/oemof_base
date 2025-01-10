@@ -17,7 +17,7 @@ import pytest
 from oemof import solph
 
 
-def test_infeasible_model():
+def test_infeasible_model_warning():
     es = solph.EnergySystem(timeincrement=[1])
     bel = solph.buses.Bus(label="bus")
     es.add(bel)
@@ -34,9 +34,53 @@ def test_infeasible_model():
         )
     )
     m = solph.Model(es)
-    with warnings.catch_warnings(record=True) as w:
-        m.solve(solver="cbc")
-        assert "Optimization ended with status" in str(w[0].message)
+    with warnings.catch_warnings(record=False) as w:
+        m.solve(solver="cbc", allow_nonoptimal=True)
+        assert "The solver did not return an optimal solution" in str(
+            w[0].message
+        )
+
+
+def test_infeasible_model_error():
+    es = solph.EnergySystem(timeincrement=[1])
+    bel = solph.buses.Bus(label="bus")
+    es.add(bel)
+    es.add(
+        solph.components.Sink(
+            inputs={bel: solph.flows.Flow(nominal_value=5, fix=[1])}
+        )
+    )
+    es.add(
+        solph.components.Source(
+            outputs={bel: solph.flows.Flow(nominal_value=4, variable_costs=5)}
+        )
+    )
+    m = solph.Model(es)
+    try:
+        m.solve(solver="cbc", allow_nonoptimal=False)
+    except Exception as e:
+        assert "The solver did not return an optimal solution" in str(e)
+
+
+def test_unbounded_model():
+    es = solph.EnergySystem(timeincrement=[1])
+    bel = solph.buses.Bus(label="bus")
+    es.add(bel)
+    # Add a Sink with a higher demand
+    es.add(solph.components.Sink(inputs={bel: solph.flows.Flow()}))
+
+    # Add a Source with a very high supply
+    es.add(
+        solph.components.Source(
+            outputs={bel: solph.flows.Flow(variable_costs=-5)}
+        )
+    )
+    m = solph.Model(es)
+
+    try:
+        m.solve(solver="cbc", allow_nonoptimal=False)
+    except Exception as e:
+        assert "The solver did not return an optimal solution" in str(e)
 
 
 @pytest.mark.filterwarnings(

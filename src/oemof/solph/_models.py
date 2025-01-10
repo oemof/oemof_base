@@ -373,7 +373,9 @@ class Model(po.ConcreteModel):
         """
         return processing.results(self)
 
-    def solve(self, solver="cbc", solver_io="lp", **kwargs):
+    def solve(
+        self, solver="cbc", solver_io="lp", allow_nonoptimal=False, **kwargs
+    ):
         r"""Takes care of communication with solver to solve the model.
 
         Parameters
@@ -399,8 +401,8 @@ class Model(po.ConcreteModel):
         """
         solve_kwargs = kwargs.get("solve_kwargs", {})
         solver_cmdline_options = kwargs.get("cmdline_options", {})
-
         opt = SolverFactory(solver, solver_io=solver_io)
+
         # set command line options
         options = opt.options
         for k in solver_cmdline_options:
@@ -408,23 +410,28 @@ class Model(po.ConcreteModel):
 
         solver_results = opt.solve(self, **solve_kwargs)
 
-        status = solver_results["Solver"][0]["Status"]
-        termination_condition = solver_results["Solver"][0][
-            "Termination condition"
-        ]
+        status = solver_results.Solver.Status
+        termination_condition = solver_results.Solver.Termination_condition
+
+        self.es.results = solver_results
+        self.solver_results = solver_results
 
         if status == "ok" and termination_condition == "optimal":
             logging.info("Optimization successful...")
         else:
             msg = (
-                "Optimization ended with status {0} and termination "
-                "condition {1}"
+                f"The solver did not return an optimal solution. "
+                f"Instead the optimization ended with\n "
+                f"      - status: {status}\n"
+                f"       - termination condition: {termination_condition}"
             )
-            warnings.warn(
-                msg.format(status, termination_condition), UserWarning
-            )
-        self.es.results = solver_results
-        self.solver_results = solver_results
+
+            if allow_nonoptimal:
+                warnings.warn(
+                    msg.format(status, termination_condition), UserWarning
+                )
+            else:
+                raise RuntimeError(msg)
 
         return solver_results
 

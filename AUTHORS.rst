@@ -39,3 +39,4 @@ Authors
 * Stephan Günther
 * Uwe Krien
 * Tobi Rohrer
+* Eva Schischke
