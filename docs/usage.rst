@@ -8,18 +8,12 @@ User's guide
 
 Solph is an oemof-package, designed to create and solve linear or mixed-integer linear optimization problems. The package is based on pyomo. To create an energy system model generic and specific components are available. To get started with solph, checkout the examples in the :ref:`examples_label` section.
 
-This User's guide provides a user-friendly introduction into oemof-solph,
+This User's guide provides a user-friendly introduction into oemof.solph,
 which includes small examples and nice illustrations.
-However, the functionalities of oemof-solph go beyond the content of this User's guide section.
+However, the functionalities of oemof.solph go beyond the content of this User's guide section.
 So, if you want to know all details of a certain component or a function,
 please go the :ref:`api_reference_label`. There, you will find
-a detailed and complete description of all oemof-solph modules.
-
-.. contents::
-    :depth: 2
-    :local:
-    :backlinks: top
-
+a detailed and complete description of all oemof.solph modules.
 
 How can I use solph?
 --------------------
@@ -101,10 +95,15 @@ All solph *components* can be used to set up an energy system model but you shou
 An example of a simple energy system shows the usage of the nodes for
 real world representations:
 
-.. 	image:: _files/oemof_solph_example.svg
-   :scale: 70 %
-   :alt: alternate text
+.. 	figure:: /_files/oemof_solph_example_darkmode.svg
+   :alt: oemof_solph_example_darkmode.svgt
    :align: center
+   :figclass: only-dark
+
+.. 	figure:: /_files/oemof_solph_example.svg
+   :alt: oemof_solph_example.svg
+   :align: center
+   :figclass: only-light
 
 The figure shows a simple energy system using the four basic network classes and the Bus class.
 If you remove the transmission line (transport 1 and transport 2) you get two systems but they are still one energy system in terms of solph and will be optimised at once.
@@ -413,10 +412,15 @@ the power loss factor :math:`\beta` (in some contexts also referred to as
 :math:`C_v`). The second constraint limits the decrease of electrical power and
 incorporates the backpressure coefficient :math:`C_b`.
 
-.. 	image:: _files/ExtractionTurbine_range_of_operation.svg
-   :width: 70 %
+.. 	figure:: /_files/ExtractionTurbine_range_of_operation.svg
    :alt: variable_chp_plot.svg
    :align: center
+   :figclass: only-light
+
+.. 	figure:: /_files/ExtractionTurbine_range_of_operation_darkmode.svg
+   :alt: variable_chp_plot_darkmode.svg
+   :align: center
+   :figclass: only-dark
 
 For now, :py:class:`~oemof.solph.components._extraction_turbine_chp.ExtractionTurbineCHP` instances must
 have one input and two output flows. The class allows the definition
@@ -443,10 +447,17 @@ and thermal power production in contrast to a fixed chp (left). The plot is the
 output of an example in the `example directory
 <https://github.com/oemof/oemof-solph/tree/dev/examples>`_.
 
-.. 	image:: _files/variable_chp_plot.svg
-   :scale: 10 %
+.. 	figure:: /_files/variable_chp_plot.svg
+   :scale: 10%
    :alt: variable_chp_plot.svg
    :align: center
+   :figclass: only-light
+
+.. 	figure:: /_files/variable_chp_plot_darkmode.svg
+   :scale: 10%
+   :alt: variable_chp_plot_darkmode.svg
+   :align: center
+   :figclass: only-dark
 
 .. note:: See the :py:class:`~oemof.solph.components._extraction_turbine_chp.ExtractionTurbineCHP` class for all parameters and the mathematical background.
 
@@ -459,10 +470,17 @@ GenericCHP (component)
 With the GenericCHP class it is possible to model different types of CHP plants (combined cycle extraction turbines,
 back pressure turbines and motoric CHP), which use different ranges of operation, as shown in the figure below.
 
-.. 	image:: _files/GenericCHP.svg
+.. 	figure:: /_files/GenericCHP.svg
    :scale: 70 %
    :alt: scheme of GenericCHP operation range
    :align: center
+   :figclass: only-light
+
+.. 	figure:: /_files/GenericCHP_darkmode.svg
+   :scale: 70 %
+   :alt: scheme of GenericCHP operation range
+   :align: center
+   :figclass: only-dark
 
 Combined cycle extraction turbines: The minimal and maximal electric power without district heating
 (red dots in the figure) define maximum load and minimum load of the plant. Beta defines electrical power loss through
@@ -790,16 +808,32 @@ The following figures show the power at the electrical and the thermal output
 and the resepctive ratios to the nonconvex flow (normalized). The efficiency
 becomes non-linear.
 
-.. 	image:: _files/OffsetConverter_relations_1.svg
+.. 	figure:: /_files/OffsetConverter_relations_1.svg
    :width: 70 %
    :alt: OffsetConverter_relations_1.svg
    :align: center
+   :figclass: only-light
+
+.. 	figure:: /_files/OffsetConverter_relations_1_darkmode.svg
+   :width: 70 %
+   :alt: OffsetConverter_relations_1_darkmode.svg
+   :align: center
+   :figclass: only-dark
 
 
-.. 	image:: _files/OffsetConverter_relations_2.svg
+
+
+.. 	figure:: /_files/OffsetConverter_relations_2.svg
    :width: 70 %
    :alt: OffsetConverter_relations_2.svg
    :align: center
+   :figclass: only-light
+
+.. 	figure:: /_files/OffsetConverter_relations_2_darkmode.svg
+   :width: 70 %
+   :alt: OffsetConverter_relations_2_darkmode.svg
+   :align: center
+   :figclass: only-dark
 
 .. math::
 
@@ -929,10 +963,17 @@ This small example of PV, grid and SinkDSM shows how to use the component
 
 Yielding the following results
 
-..  image:: _files/Plot_delay_2013-01-01.svg
+..  figure:: /_files/Plot_delay_2013-01-01.svg
    :width: 85 %
    :alt: Plot_delay_2013-01-01.svg
    :align: center
+   :figclass: only-light
+
+..  figure:: /_files/Plot_delay_2013-01-01_darkmode.svg
+   :width: 85 %
+   :alt: Plot_delay_2013-01-01_darkmode.svg
+   :align: center
+   :figclass: only-dark
 
 
 .. note::
@@ -1049,10 +1090,17 @@ The following figures illustrates the use of the nonconvex investment flow.
 Here, :math:`c_{invest,fix}` is the *offset* value and :math:`c_{invest,var}` is
 the *ep_costs* value:
 
-.. 	image:: _files/nonconvex_invest_investcosts_power.svg
+.. 	figure:: /_files/nonconvex_invest_investcosts_power.svg
    :width: 70 %
    :alt: nonconvex_invest_investcosts_power.svg
    :align: center
+   :figclass: only-light
+
+.. 	figure:: /_files/nonconvex_invest_investcosts_power_darkmode.svg
+   :width: 70 %
+   :alt: nonconvex_invest_investcosts_power_darkmode.svg
+   :align: center
+   :figclass: only-dark
 
 In case of a convex investment (which is the default setting
 `nonconvex=False`), the *minimum* attribute leads to a forced investment,
@@ -1061,10 +1109,17 @@ whereas in the nonconvex case, the investment can become zero as well.
 The calculation of the specific costs per kilowatt installed capacity results
 in the following relation for convex and nonconvex investments:
 
-.. 	image:: _files/nonconvex_invest_specific_costs.svg
+.. 	figure:: /_files/nonconvex_invest_specific_costs.svg
    :width: 70 %
    :alt: nonconvex_invest_specific_costs.svg
    :align: center
+   :figclass: only-light
+
+.. 	figure:: /_files/nonconvex_invest_specific_costs_darkmode.svg
+   :width: 70 %
+   :alt: nonconvex_invest_specific_costs_darkmode.svg
+   :align: center
+   :figclass: only-dark
 
 See :py:class:`~oemof.solph.blocks.investment_flow.InvestmentFlow` and
 :py:class:`~oemof.solph.components._generic_storage.GenericInvestmentStorageBlock` for all the
@@ -1424,10 +1479,17 @@ The following diagram shows the duration curve of a typical diesel genset in a h
 PV cells, battery, inverter, and rectifier. By using the :py:class:`~oemof.solph.flows._invest_non_convex_flow_block.InvestNonConvexFlowBlock` class,
 it is possible to obtain the optimal capacity of this component and simultaneously limit its operation between `min` and `max` loads.
 
-.. 	image:: _files/diesel_genset_nonconvex_invest_flow.svg
+.. 	figure:: /_files/diesel_genset_nonconvex_invest_flow.svg
    :width: 100 %
    :alt: diesel_genset_nonconvex_invest_flow.svg
    :align: center
+   :figclass: only-light
+
+.. 	figure:: /_files/diesel_genset_nonconvex_invest_flow_darkmode.svg
+   :width: 100 %
+   :alt: diesel_genset_nonconvex_invest_flow_darkmode.svg
+   :align: center
+   :figclass: only-dark
 
 Without using the new :py:class:`~oemof.solph.flows._invest_non_convex_flow_block.InvestNonConvexFlowBlock` class, if the same system is optimized again, but this
 time using the :py:class:`~oemof.solph.flows._investment_flow_block.InvestmentFlowBlock`, the corresponding duration curve would be similar to the following
@@ -1439,20 +1501,35 @@ Moreover, using the :py:class:`~oemof.solph.flows._investment_flow_block.Investm
 oversized diesel genset, which has a 30% larger capacity compared with the optimal capacity obtained from the
 :py:class:`~oemof.solph.flows._invest_non_convex_flow_block.InvestNonConvexFlowBlock` class.
 
-.. 	image:: _files/diesel_genset_investment_flow.svg
+.. 	figure:: /_files/diesel_genset_investment_flow.svg
    :width: 100 %
    :alt: diesel_genset_investment_flow.svg
    :align: center
+   :figclass: only-light
+
+.. 	figure:: /_files/diesel_genset_investment_flow_darkmode.svg
+   :width: 100 %
+   :alt: diesel_genset_investment_flow_darkmode.svg
+   :align: center
+   :figclass: only-dark
+
 
 Solving such an optimisation problem considering `min`/`max` loads without the :py:class:`~oemof.solph.flows._invest_non_convex_flow_block.InvestNonConvexFlowBlock` class, the only possibility is first to obtain the optimal capacity using the
 :py:class:`~oemof.solph.flows._investment_flow_block.InvestmentFlowBlock` and then implement the `min`/`max` loads using the
 :py:class:`~oemof.solph.flows._non_convex_flow_block.NonConvexFlowBlock` class. The following duration curve would be obtained by applying
 this method to the same diesel genset.
 
-.. 	image:: _files/diesel_genset_nonconvex_flow.svg
+.. 	figure:: /_files/diesel_genset_nonconvex_flow.svg
    :width: 100 %
    :alt: diesel_genset_nonconvex_flow.svg
    :align: center
+   :figclass: only-light
+
+.. 	figure:: /_files/diesel_genset_nonconvex_flow_darkmode.svg
+   :width: 100 %
+   :alt: diesel_genset_nonconvex_flow_darkmode.svg
+   :align: center
+   :figclass: only-dark
 
 Because of the oversized diesel genset obtained from this approach, the capacity of the PV and battery in the given case study
 would be 13% and 43% smaller than the capacities obtained using the :py:class:`~oemof.solph.flows.NonConvexInvestmentFlow` class.

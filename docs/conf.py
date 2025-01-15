@@ -2,11 +2,10 @@
 
 import os
 import sys
+import oemof.solph
 
 import matplotlib
 from sphinx.ext.autodoc import between
-
-from oemof.solph import __version__
 
 
 matplotlib.use("agg")
@@ -20,6 +19,11 @@ def setup(app):
     return app
 
 
+# -- General configuration ------------------------------------------------
+
+# Add any Sphinx extension module names here, as strings. They can be
+# extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
+# ones.
 extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
@@ -33,41 +37,117 @@ extensions = [
     "sphinx_copybutton",
     "sphinx_design",
 ]
-source_suffix = ".rst"
-master_doc = "index"
+
+# landing page
+# master_doc = 'contents'
+# names, years, etc
 project = "oemof.solph"
-year = "2014-2023"
-author = "oemof-developer-group"
+year = "2024"
+author = "oemof developer group"
 copyright = "{0}, {1}".format(year, author)
-version = release = __version__
 
-pygments_style = "trac"
-templates_path = ["."]
+# The short X.Y version.
+version = oemof.solph.__version__.split(" ")[0]
+# The full version, including alpha/beta/rc tags.
+release = oemof.solph.__version__
+
+# The suffix of source filenames.
+source_suffix = ".rst"
+# folder for templates
+templates_path = ["_templates"]
+
+# List of patterns, relative to source directory, that match files and
+# directories to ignore when looking for source files.
+exclude_patterns = ["_build"]
+
+# The name of the Pygments (syntax highlighting) style to use.
+# pygments_style = "some"
+# pygments_dark_style = "someother"
+
+# show all class members
+# numpydoc_show_class_members = False
+
+# place for bibtex references
+bibtex_bibfiles = ["references.bib"]
+
+# links to github
+github_repo_url = "https://github.com/oemof/oemof-solph/"
 extlinks = {
-    "issue": ("https://github.com/oemof/oemof-solph/issues/%s", "#%s"),
-    "pr": ("https://github.com/oemof/oemof-solph/pull/%s", "PR #%s"),
+    "issue": (f"{github_repo_url}/issues/%s", "#%s"),  # noqa: WPS323
+    "pr": (f"{github_repo_url}/pull/%s", "PR #%s"),  # noqa: WPS323
+    "commit": (f"{github_repo_url}/commit/%s", "%s"),  # noqa: WPS323
 }
-# on_rtd is whether we are on readthedocs.org
-on_rtd = os.environ.get("READTHEDOCS", None) == "True"
 
-if not on_rtd:  # only set the theme if we're building docs locally
-    html_theme = "sphinx_rtd_theme"
+# -- Options for HTML output ----------------------------------------------
 
+# The theme to use for HTML and HTML Help pages.
+html_theme = "furo"
+
+# The name for this set of Sphinx documents.  If None, it defaults to
+# "<project> v<release> documentation".
+
+
+# A shorter title for the navigation bar.  Default is the same as html_title.
+html_short_title = "%s-%s" % (project, version)
+
+# Some more stuff
 html_use_smartypants = True
 html_last_updated_fmt = "%b %d, %Y"
 html_split_index = False
+
+# The name of an image file (within the static path) to use as favicon of the
+# docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
+# pixels large.
+# html_favicon = None
+
+# Add any paths that contain custom static files (such as style sheets) here,
+# relative to this directory. They are copied after the builtin static files,
+# so a file named "default.css" will overwrite the builtin "default.css".
+html_static_path = ["_static"]
+html_css_files = [
+    "css/custom.css",
+]
+# html_additional_pages = {
+#     "index": "index.html"
+# }
+
 html_sidebars = {
-    "**": ["searchbox.html", "globaltoc.html", "sourcelink.html"],
+    "**": [
+        "sidebar/brand.html",
+        "sidebar/search.html",
+        "sidebar/scroll-start.html",
+        "sidebar/navigation.html",
+        "sidebar/ethical-ads.html",
+        "sidebar/scroll-end.html",
+        "sidebar/variant-selector.html",
+    ],
 }
-html_short_title = "%s-%s" % (project, version)
-html_logo = "./_logo/logo_oemof_solph_COMPACT_bg.svg"
+
+html_theme_options = {
+    "light_logo": "./_logo/logo_oemof_solph_COMPACT.svg",
+    "dark_logo": "./_logo/logo_oemof_solph_COMPACT_darkmode.svg",
+    "announcement": """
+    <div oemof-announcement=\"https://raw.githubusercontent.com/oemof/oemof-solph/announcements/announcement.html\"></div>
+    """,
+}
+
+html_js_files = [
+    "js/custom.js",
+]
+
+
+html_favicon = "./_static/_logo/logo_oemof_solph_ICON.svg"
 
 napoleon_use_ivar = True
 napoleon_use_rtype = False
 napoleon_use_param = False
-nitpicky = False
 
-exclude_patterns = ["_build", "whatsnew/*"]
+# copybutton configuration
+copybutton_prompt_text = r">>> |\.\.\. "
+copybutton_prompt_is_regexp = True
+
+# Output file base name for HTML help builder.
+htmlhelp_basename = "oemof.solph_doc"
 
 linkcheck_ignore = [
     r"https://requires.io/.*",

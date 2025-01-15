@@ -3,12 +3,6 @@ Changelog
 
 These are new features and improvements of note in each release
 
-.. contents:: `Releases`
-    :depth: 1
-    :local:
-    :backlinks: top
-
-
 .. include::  whatsnew/v0-6-0.rst
 .. include::  whatsnew/v0-5-6.rst
 .. include::  whatsnew/v0-5-5.rst
