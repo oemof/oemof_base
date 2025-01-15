@@ -106,7 +106,8 @@ class GenericStorage(Node):
         see: min_storage_level
     storage_costs : numeric (iterable or scalar), :math:`c_{storage}(t)`
         Cost (per energy) for having energy in the storage, starting from
-        time point :math:`t_{1}`.
+        time point :math:`t_{1}`. (:math:`t_{0}` is left out to avoid counting
+        it twice if balanced=True.)
     lifetime_inflow : int, :math:`n_{in}`
         Determine the lifetime of an inflow; only applicable for multi-period
         models which can invest in storage capacity and have an
